@@ -43,6 +43,10 @@ if ! command -v git >/dev/null 2>&1; then
   MISSING_PACKAGES+=("git")
 fi
 
+if ! command -v mpv >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("mpv")
+fi
+
 if [ "${#MISSING_PACKAGES[@]}" -gt 0 ]; then
   echo "Installing missing system packages: ${MISSING_PACKAGES[*]}"
   sudo apt-get update

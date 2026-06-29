@@ -25,20 +25,25 @@
     </section>
 
     <section class="source-row" aria-label="Sources">
-      <article class="source active">
+      <article class="source">
         <span class="source-dot"></span>
         <div>
           <p class="source-name">Spotify</p>
           <p id="spotify-status" class="source-state">Waiting</p>
         </div>
       </article>
-      <article class="source">
+      <article id="radio-card" class="source active">
         <span class="source-dot"></span>
         <div>
-          <p class="source-name">Radio</p>
+          <p id="radio-name" class="source-name">Radio</p>
           <p id="radio-status" class="source-state">Waiting</p>
         </div>
       </article>
+    </section>
+
+    <section class="control-row" aria-label="Radio controls">
+      <select id="station-select" class="station-select" aria-label="Radio station"></select>
+      <button id="radio-toggle" class="control-button" type="button">Play</button>
     </section>
 
     <footer class="bottom-bar">
