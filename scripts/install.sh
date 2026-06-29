@@ -22,35 +22,52 @@ SERVICE_USER="${MUSICSTREAMER_SERVICE_USER:-$USER}"
 SERVICE_BUILD_FILE="/tmp/$SERVICE_NAME.service"
 MISSING_PACKAGES=()
 
+collect_missing_packages() {
+  MISSING_PACKAGES=()
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    MISSING_PACKAGES+=("python3")
+  fi
+
+  if ! python3 -m venv --help >/dev/null 2>&1; then
+    MISSING_PACKAGES+=("python3-venv")
+  fi
+
+  if ! python3 -m pip --version >/dev/null 2>&1; then
+    MISSING_PACKAGES+=("python3-pip")
+  fi
+
+  if ! command -v git >/dev/null 2>&1; then
+    MISSING_PACKAGES+=("git")
+  fi
+
+  if ! command -v mpv >/dev/null 2>&1; then
+    MISSING_PACKAGES+=("mpv")
+  fi
+}
+
 if ! command -v sudo >/dev/null 2>&1; then
   echo "sudo is required to install system packages and the systemd service."
   exit 1
 fi
 
-if ! command -v python3 >/dev/null 2>&1; then
-  MISSING_PACKAGES+=("python3")
-fi
-
-if ! python3 -m venv --help >/dev/null 2>&1; then
-  MISSING_PACKAGES+=("python3-venv")
-fi
-
-if ! python3 -m pip --version >/dev/null 2>&1; then
-  MISSING_PACKAGES+=("python3-pip")
-fi
-
-if ! command -v git >/dev/null 2>&1; then
-  MISSING_PACKAGES+=("git")
-fi
-
-if ! command -v mpv >/dev/null 2>&1; then
-  MISSING_PACKAGES+=("mpv")
-fi
+collect_missing_packages
 
 if [ "${#MISSING_PACKAGES[@]}" -gt 0 ]; then
   echo "Installing missing system packages: ${MISSING_PACKAGES[*]}"
   sudo apt-get update
-  sudo apt-get install -y --no-upgrade "${MISSING_PACKAGES[@]}"
+  if ! sudo apt-get install -y --no-upgrade "${MISSING_PACKAGES[@]}"; then
+    collect_missing_packages
+
+    if [ "${#MISSING_PACKAGES[@]}" -gt 0 ]; then
+      echo "apt failed and these packages are still missing: ${MISSING_PACKAGES[*]}"
+      echo "Repair apt/dpkg on the Raspberry Pi and run this script again."
+      exit 1
+    fi
+
+    echo "apt reported an error, but required packages are now available."
+    echo "Continuing with MusicStreamer setup. Repair apt/dpkg later."
+  fi
 else
   echo "System packages already available; skipping apt install."
 fi

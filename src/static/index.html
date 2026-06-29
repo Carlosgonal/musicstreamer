@@ -16,35 +16,21 @@
       <time id="clock" class="clock" datetime="">--:--</time>
     </header>
 
-    <section class="status-panel" aria-live="polite">
-      <div class="status-ring" aria-hidden="true"></div>
+    <section class="status-strip" aria-live="polite">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span id="system-status">Starting</span>
+      <span id="radio-status">Waiting</span>
+    </section>
+
+    <section class="radio-panel" aria-label="Radio controls">
       <div>
-        <p class="label">Status</p>
-        <p id="system-status" class="status-text">Starting</p>
+        <p class="label">Radio</p>
+        <p id="radio-name" class="now-playing">Select station</p>
       </div>
+      <button id="radio-toggle" class="play-button" type="button">Play</button>
     </section>
 
-    <section class="source-row" aria-label="Sources">
-      <article class="source">
-        <span class="source-dot"></span>
-        <div>
-          <p class="source-name">Spotify</p>
-          <p id="spotify-status" class="source-state">Waiting</p>
-        </div>
-      </article>
-      <article id="radio-card" class="source active">
-        <span class="source-dot"></span>
-        <div>
-          <p id="radio-name" class="source-name">Radio</p>
-          <p id="radio-status" class="source-state">Waiting</p>
-        </div>
-      </article>
-    </section>
-
-    <section class="control-row" aria-label="Radio controls">
-      <select id="station-select" class="station-select" aria-label="Radio station"></select>
-      <button id="radio-toggle" class="control-button" type="button">Play</button>
-    </section>
+    <section id="station-list" class="station-list" aria-label="Radio stations"></section>
 
     <footer class="bottom-bar">
       <span id="network-state">Local</span>

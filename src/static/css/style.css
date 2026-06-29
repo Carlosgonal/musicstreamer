@@ -9,6 +9,7 @@
   --accent: #46d39a;
   --accent-soft: rgba(70, 211, 154, 0.18);
   --warning: #d6a443;
+  --danger: #f05d5e;
 }
 
 * {
@@ -35,8 +36,9 @@ body {
   width: 480px;
   height: 320px;
   display: grid;
-  grid-template-rows: 62px 76px 66px 54px 38px;
-  padding: 14px 18px 10px;
+  grid-template-rows: 54px 28px 78px 106px 34px;
+  gap: 5px;
+  padding: 12px 16px 9px;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.045), transparent 42%),
     var(--bg);
@@ -44,9 +46,9 @@ body {
 
 .top-bar,
 .bottom-bar,
-.source-row,
-.status-panel,
-.source {
+.status-strip,
+.radio-panel,
+.station-list {
   min-width: 0;
 }
 
@@ -58,8 +60,7 @@ body {
 }
 
 .eyebrow,
-.label,
-.source-state {
+.label {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
@@ -68,7 +69,7 @@ body {
 
 h1 {
   margin: 5px 0 0;
-  font-size: 30px;
+  font-size: 27px;
   line-height: 1;
   font-weight: 700;
   letter-spacing: 0;
@@ -76,124 +77,102 @@ h1 {
 
 .clock {
   flex: 0 0 auto;
-  font-size: 34px;
+  font-size: 31px;
   line-height: 1;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.status-panel {
+.status-strip {
   display: grid;
-  grid-template-columns: 48px 1fr;
+  grid-template-columns: 10px auto 1fr;
   align-items: center;
-  gap: 16px;
-  padding: 10px 14px;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.status-strip span:last-child {
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.radio-panel {
+  display: grid;
+  grid-template-columns: 1fr 112px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
 }
 
-.status-ring {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 7px solid var(--accent-soft);
-  border-top-color: var(--accent);
-  box-shadow: 0 0 24px rgba(70, 211, 154, 0.18);
-}
-
-.status-text {
-  margin: 6px 0 0;
+.now-playing {
+  margin: 5px 0 0;
   overflow: hidden;
-  color: var(--text);
-  font-size: 23px;
-  line-height: 1.08;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.source-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  align-items: center;
-}
-
-.source {
-  height: 54px;
-  display: grid;
-  grid-template-columns: 12px 1fr;
-  align-items: center;
-  gap: 11px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel-strong);
-}
-
-.source.active {
-  border-color: rgba(70, 211, 154, 0.65);
-  background: linear-gradient(180deg, rgba(70, 211, 154, 0.13), var(--panel-strong));
-}
-
-.source-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--warning);
-}
-
-.source.active .source-dot {
-  background: var(--accent);
-}
-
-.source.playing {
-  border-color: rgba(70, 211, 154, 0.9);
-}
-
-.source-name {
-  margin: 0 0 5px;
-  overflow: hidden;
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.control-row {
-  display: grid;
-  grid-template-columns: 1fr 92px;
-  align-items: center;
-  gap: 12px;
+.play-button {
+  width: 100%;
+  height: 56px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #03110b;
+  font: inherit;
+  font-size: 22px;
+  font-weight: 700;
 }
 
-.station-select,
-.control-button {
-  width: 100%;
-  height: 42px;
+.play-button.playing {
+  background: var(--danger);
+  color: #fff;
+}
+
+.play-button:disabled {
+  opacity: 0.55;
+}
+
+.station-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 50px;
+  gap: 8px;
+}
+
+.station-button {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel-strong);
   color: var(--text);
   font: inherit;
-  font-size: 17px;
-}
-
-.station-select {
-  padding: 0 10px;
-}
-
-.control-button {
-  border-color: rgba(70, 211, 154, 0.6);
-  background: var(--accent);
-  color: #04110c;
+  font-size: 16px;
   font-weight: 700;
+  line-height: 1.05;
+  overflow: hidden;
+  padding: 0 8px;
+  text-overflow: ellipsis;
 }
 
-.control-button:disabled {
-  opacity: 0.55;
+.station-button.selected {
+  border-color: rgba(70, 211, 154, 0.9);
+  background: var(--accent-soft);
 }
 
 .bottom-bar {
@@ -202,7 +181,7 @@ h1 {
   align-items: end;
   gap: 10px;
   color: var(--muted);
-  font-size: 17px;
+  font-size: 15px;
   line-height: 1;
 }
 

@@ -2,17 +2,16 @@ const elements = {
   projectName: document.querySelector("#project-name"),
   clock: document.querySelector("#clock"),
   systemStatus: document.querySelector("#system-status"),
-  spotifyStatus: document.querySelector("#spotify-status"),
-  radioCard: document.querySelector("#radio-card"),
   radioName: document.querySelector("#radio-name"),
   radioStatus: document.querySelector("#radio-status"),
-  stationSelect: document.querySelector("#station-select"),
+  stationList: document.querySelector("#station-list"),
   radioToggle: document.querySelector("#radio-toggle"),
   networkState: document.querySelector("#network-state"),
   volumeState: document.querySelector("#volume-state"),
 };
 
 let radioState = "standby";
+let selectedStationId = "";
 
 async function getJson(url) {
   const response = await fetch(url, { cache: "no-store" });
@@ -47,31 +46,52 @@ function updateSystem(system) {
   elements.volumeState.textContent = `Vol ${system.volume}%`;
 }
 
-function updateSource(element, source) {
-  element.textContent = source.label;
-}
-
 function updateRadio(radio) {
   radioState = radio.state;
-  elements.radioName.textContent = radio.station?.name || "Radio";
+  selectedStationId = radio.station?.id || selectedStationId;
+  elements.radioName.textContent = radio.station?.name || getSelectedStationName() || "Select station";
   elements.radioStatus.textContent = radio.error || radio.label;
   elements.radioToggle.textContent = radio.state === "playing" ? "Stop" : "Play";
-  elements.radioCard.classList.toggle("playing", radio.state === "playing");
+  elements.radioToggle.classList.toggle("playing", radio.state === "playing");
 
   if (radio.station?.id) {
-    elements.stationSelect.value = radio.station.id;
+    setSelectedStation(radio.station.id);
   }
 }
 
 function loadStations(stations) {
-  elements.stationSelect.replaceChildren();
+  elements.stationList.replaceChildren();
 
   for (const station of stations) {
-    const option = document.createElement("option");
-    option.value = station.id;
-    option.textContent = station.name;
-    elements.stationSelect.append(option);
+    const button = document.createElement("button");
+    button.className = "station-button";
+    button.type = "button";
+    button.dataset.stationId = station.id;
+    button.textContent = station.name;
+    button.addEventListener("click", () => {
+      setSelectedStation(station.id);
+      elements.radioName.textContent = station.name;
+    });
+    elements.stationList.append(button);
   }
+
+  if (stations.length > 0) {
+    setSelectedStation(stations[0].id);
+    elements.radioName.textContent = stations[0].name;
+  }
+}
+
+function setSelectedStation(stationId) {
+  selectedStationId = stationId;
+
+  for (const button of elements.stationList.querySelectorAll(".station-button")) {
+    button.classList.toggle("selected", button.dataset.stationId === stationId);
+  }
+}
+
+function getSelectedStationName() {
+  const selected = elements.stationList.querySelector(".station-button.selected");
+  return selected?.textContent || "";
 }
 
 async function toggleRadio() {
@@ -80,7 +100,7 @@ async function toggleRadio() {
   try {
     const radio = radioState === "playing"
       ? await postJson("/api/radio/stop")
-      : await postJson("/api/radio/play", { station_id: elements.stationSelect.value });
+      : await postJson("/api/radio/play", { station_id: selectedStationId });
 
     updateRadio(radio);
   } catch (error) {
@@ -93,14 +113,12 @@ async function toggleRadio() {
 
 async function refresh() {
   try {
-    const [system, spotify, radio] = await Promise.all([
+    const [system, radio] = await Promise.all([
       getJson("/api/system/status"),
-      getJson("/api/spotify/status"),
       getJson("/api/radio/status"),
     ]);
 
     updateSystem(system);
-    updateSource(elements.spotifyStatus, spotify);
     updateRadio(radio);
   } catch (error) {
     elements.systemStatus.textContent = "API unavailable";
