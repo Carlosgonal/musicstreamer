@@ -42,7 +42,7 @@ def _client_secret() -> str:
 
 
 def _redirect_uri() -> str:
-    return _setting("redirect_uri", "SPOTIFY_REDIRECT_URI", "http://localhost:8080/api/spotify/callback")
+    return _setting("redirect_uri", "SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8080/api/spotify/callback")
 
 
 def _read_config() -> dict:

@@ -1,5 +1,6 @@
 const elements = {
   clock: document.querySelector("#clock"),
+  date: document.querySelector("#date"),
   systemStatus: document.querySelector("#system-status"),
   spotifyStatus: document.querySelector("#spotify-status"),
   spotifySource: document.querySelector("#spotify-source"),
@@ -70,6 +71,8 @@ async function postJson(url, payload = {}) {
 function updateSystem(system) {
   elements.clock.textContent = system.time;
   elements.clock.dateTime = `${system.date}T${system.time}`;
+  elements.date.textContent = formatDate(system.date);
+  elements.date.dateTime = system.date;
   elements.systemStatus.textContent = system.status;
   elements.networkState.textContent = system.network;
   elements.volumeState.textContent = `Vol ${system.volume}%`;
@@ -78,6 +81,16 @@ function updateSystem(system) {
   if (!isVolumeDragging) {
     elements.volumeControl.value = system.volume;
   }
+}
+
+function formatDate(date) {
+  const [year, month, day] = String(date).split("-");
+
+  if (!year || !month || !day) {
+    return "--/--/----";
+  }
+
+  return `${day}/${month}/${year}`;
 }
 
 function updateAudioOutput(audio) {

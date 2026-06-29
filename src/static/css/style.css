@@ -56,10 +56,10 @@ body {
 }
 
 .top-bar {
-  display: flex;
+  display: grid;
   align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
+  justify-items: center;
+  gap: 1px;
 }
 
 .top-bar.compact {
@@ -83,8 +83,15 @@ h1 {
 }
 
 .clock {
-  flex: 0 0 auto;
   font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.date {
+  color: var(--muted);
+  font-size: 12px;
   line-height: 1;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
