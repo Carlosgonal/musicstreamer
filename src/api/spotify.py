@@ -77,7 +77,7 @@ def save_settings():
 
     try:
         settings = save_admin_settings(payload)
-    except ValueError as error:
+    except (OSError, ValueError) as error:
         return jsonify({"error": str(error)}), 400
 
     return jsonify(settings)

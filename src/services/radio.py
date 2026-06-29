@@ -41,7 +41,9 @@ DEFAULT_STATIONS = [
 ]
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
-RADIO_CONFIG_FILE = PROJECT_DIR / "config" / "radio.json"
+RUNTIME_CONFIG_DIR = PROJECT_DIR / "var" / "config"
+RADIO_CONFIG_FILE = RUNTIME_CONFIG_DIR / "radio.json"
+DEFAULT_RADIO_CONFIG_FILE = PROJECT_DIR / "config" / "radio.json"
 _process: subprocess.Popen | None = None
 _current_station: dict | None = None
 _last_error: str | None = None
@@ -97,8 +99,10 @@ def _normalize_station(station: dict) -> dict | None:
 
 
 def _read_station_config() -> list[dict]:
+    config_path = RADIO_CONFIG_FILE if RADIO_CONFIG_FILE.exists() else DEFAULT_RADIO_CONFIG_FILE
+
     try:
-        with RADIO_CONFIG_FILE.open("r", encoding="utf-8") as config_file:
+        with config_path.open("r", encoding="utf-8") as config_file:
             config = json.load(config_file)
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return DEFAULT_STATIONS

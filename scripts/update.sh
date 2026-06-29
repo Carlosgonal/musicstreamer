@@ -14,8 +14,29 @@ if [ -f "$PROJECT_DIR/env/.env" ]; then
 fi
 
 SERVICE_NAME="${MUSICSTREAMER_SERVICE_NAME:-musicstreamer}"
+SERVICE_USER="${MUSICSTREAMER_SERVICE_USER:-$USER}"
+
+migrate_runtime_config_file() {
+  local filename="$1"
+  local legacy_file="$PROJECT_DIR/config/$filename"
+  local runtime_file="$PROJECT_DIR/var/config/$filename"
+
+  if [ -f "$legacy_file" ] && [ ! -f "$runtime_file" ]; then
+    cp "$legacy_file" "$runtime_file"
+  fi
+}
+
+prepare_runtime_permissions() {
+  mkdir -p "$PROJECT_DIR/var/config"
+  migrate_runtime_config_file "audio.json"
+  migrate_runtime_config_file "radio.json"
+  migrate_runtime_config_file "spotify.json"
+  migrate_runtime_config_file "spotify-settings.json"
+  sudo chown -R "$SERVICE_USER" "$PROJECT_DIR/var"
+}
 
 git pull
+prepare_runtime_permissions
 
 if [ ! -d "$VENV_DIR" ]; then
   echo "Virtual environment not found. Run ./scripts/install.sh first."

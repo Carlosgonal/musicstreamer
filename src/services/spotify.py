@@ -15,8 +15,11 @@ from services.system import get_audio_device
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
-SPOTIFY_CONFIG_FILE = PROJECT_DIR / "config" / "spotify.json"
-SPOTIFY_SETTINGS_FILE = PROJECT_DIR / "config" / "spotify-settings.json"
+RUNTIME_CONFIG_DIR = PROJECT_DIR / "var" / "config"
+SPOTIFY_CONFIG_FILE = RUNTIME_CONFIG_DIR / "spotify.json"
+SPOTIFY_SETTINGS_FILE = RUNTIME_CONFIG_DIR / "spotify-settings.json"
+LEGACY_SPOTIFY_CONFIG_FILE = PROJECT_DIR / "config" / "spotify.json"
+LEGACY_SPOTIFY_SETTINGS_FILE = PROJECT_DIR / "config" / "spotify-settings.json"
 SPOTIFY_ACCOUNTS_URL = "https://accounts.spotify.com"
 SPOTIFY_API_URL = "https://api.spotify.com/v1"
 SPOTIFY_SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing"
@@ -82,8 +85,10 @@ def _redirect_uri() -> str:
 
 
 def _read_config() -> dict:
+    config_path = SPOTIFY_CONFIG_FILE if SPOTIFY_CONFIG_FILE.exists() else LEGACY_SPOTIFY_CONFIG_FILE
+
     try:
-        with SPOTIFY_CONFIG_FILE.open("r", encoding="utf-8") as config_file:
+        with config_path.open("r", encoding="utf-8") as config_file:
             config = json.load(config_file)
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return {}
@@ -100,8 +105,10 @@ def _write_config(config: dict) -> None:
 
 
 def _read_settings() -> dict:
+    settings_path = SPOTIFY_SETTINGS_FILE if SPOTIFY_SETTINGS_FILE.exists() else LEGACY_SPOTIFY_SETTINGS_FILE
+
     try:
-        with SPOTIFY_SETTINGS_FILE.open("r", encoding="utf-8") as settings_file:
+        with settings_path.open("r", encoding="utf-8") as settings_file:
             settings = json.load(settings_file)
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return {}

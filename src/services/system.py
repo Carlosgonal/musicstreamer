@@ -10,7 +10,9 @@ import subprocess
 DEFAULT_VOLUME = 50
 VOLUME_CONTROLS = ("Headphone", "Master", "PCM")
 PROJECT_DIR = Path(__file__).resolve().parents[2]
-AUDIO_CONFIG_FILE = PROJECT_DIR / "config" / "audio.json"
+RUNTIME_CONFIG_DIR = PROJECT_DIR / "var" / "config"
+AUDIO_CONFIG_FILE = RUNTIME_CONFIG_DIR / "audio.json"
+LEGACY_AUDIO_CONFIG_FILE = PROJECT_DIR / "config" / "audio.json"
 
 
 def get_runtime_status() -> str:
@@ -55,8 +57,10 @@ def _alsa_card_from_device(device: str) -> str:
 
 
 def _read_audio_config() -> dict:
+    config_path = AUDIO_CONFIG_FILE if AUDIO_CONFIG_FILE.exists() else LEGACY_AUDIO_CONFIG_FILE
+
     try:
-        with AUDIO_CONFIG_FILE.open("r", encoding="utf-8") as config_file:
+        with config_path.open("r", encoding="utf-8") as config_file:
             config = json.load(config_file)
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return {}

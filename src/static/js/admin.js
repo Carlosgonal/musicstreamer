@@ -37,11 +37,25 @@ async function postJson(url, payload = {}) {
   });
 
   if (!response.ok) {
-    const body = await response.text();
-    throw new Error(body || `${url} returned ${response.status}`);
+    throw new Error(await responseErrorMessage(response, url));
   }
 
   return response.json();
+}
+
+async function responseErrorMessage(response, url) {
+  const body = await response.text();
+
+  if (!body) {
+    return `${url} returned ${response.status}`;
+  }
+
+  try {
+    const data = JSON.parse(body);
+    return data.error || body;
+  } catch {
+    return body;
+  }
 }
 
 function renderStatus(settings, spotify) {
@@ -118,7 +132,7 @@ async function save(event) {
     renderStatus(settings, spotify);
     setMessage("Settings saved");
   } catch (error) {
-    setMessage("Save failed", true);
+    setMessage(`Save failed: ${error.message}`, true);
     console.error(error);
   } finally {
     elements.save.disabled = false;
