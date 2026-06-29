@@ -9,15 +9,16 @@
 <body>
   <main class="device-screen" aria-label="MusicStreamer home">
     <header class="top-bar compact">
-      <time id="clock" class="clock" datetime="">--:--</time>
-      <time id="date" class="date" datetime="">--/--/----</time>
+      <section class="status-strip" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="system-status">Starting</span>
+      </section>
+      <div class="datetime">
+        <time id="clock" class="clock" datetime="">--:--</time>
+        <time id="date" class="date" datetime="">--/--/----</time>
+      </div>
+      <span id="radio-status" class="playback-status">Waiting</span>
     </header>
-
-    <section class="status-strip" aria-live="polite">
-      <span class="status-dot" aria-hidden="true"></span>
-      <span id="system-status">Starting</span>
-      <span id="radio-status">Waiting</span>
-    </section>
 
     <section class="source-panel" aria-label="Sources">
       <button id="spotify-source" class="source-button" type="button">
@@ -88,11 +89,6 @@
       <span id="volume-state">Vol 50%</span>
     </section>
 
-    <footer class="bottom-bar">
-      <span id="network-state">Local</span>
-      <span class="home-indicator" aria-hidden="true"></span>
-      <span id="audio-state">Jack</span>
-    </footer>
   </main>
 
   <script src="/static/js/app.js" defer></script>

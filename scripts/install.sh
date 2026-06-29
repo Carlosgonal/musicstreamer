@@ -21,6 +21,8 @@ SERVICE_TEMPLATE="$PROJECT_DIR/deploy/musicstreamer.service"
 SERVICE_USER="${MUSICSTREAMER_SERVICE_USER:-$USER}"
 SERVICE_BUILD_FILE="/tmp/$SERVICE_NAME.service"
 MISSING_PACKAGES=()
+RASPOTIFY_KEYRING="/usr/share/keyrings/raspotify.gpg"
+RASPOTIFY_SOURCE_LIST="/etc/apt/sources.list.d/raspotify.list"
 
 collect_missing_packages() {
   MISSING_PACKAGES=()
@@ -49,9 +51,69 @@ collect_missing_packages() {
     MISSING_PACKAGES+=("alsa-utils")
   fi
 
-  if [ "${SPOTIFY_ENABLED:-false}" = "true" ] && ! command -v librespot >/dev/null 2>&1; then
-    MISSING_PACKAGES+=("librespot")
+  if ! command -v curl >/dev/null 2>&1; then
+    MISSING_PACKAGES+=("curl")
   fi
+
+  if ! command -v gpg >/dev/null 2>&1; then
+    MISSING_PACKAGES+=("gnupg")
+  fi
+}
+
+spotify_alsa_device() {
+  local output="${MUSICSTREAMER_AUDIO_OUTPUT:-jack}"
+  local device
+
+  if [ "$output" = "hdmi" ]; then
+    device="${MUSICSTREAMER_HDMI_AUDIO_DEVICE:-alsa/hdmi:CARD=vc4hdmi0,DEV=0}"
+  else
+    device="${MUSICSTREAMER_JACK_AUDIO_DEVICE:-alsa/plughw:CARD=Headphones,DEV=0}"
+  fi
+
+  printf '%s\n' "${device#alsa/}"
+}
+
+install_raspotify() {
+  if [ "${SPOTIFY_ENABLED:-false}" != "true" ]; then
+    return
+  fi
+
+  echo "Installing Raspotify for Spotify Connect"
+
+  if [ ! -f "$RASPOTIFY_KEYRING" ]; then
+    curl -fsSL https://dtcooper.github.io/raspotify/key.asc | sudo gpg --dearmor -o "$RASPOTIFY_KEYRING"
+  fi
+
+  if [ ! -f "$RASPOTIFY_SOURCE_LIST" ]; then
+    echo "deb [signed-by=$RASPOTIFY_KEYRING] https://dtcooper.github.io/raspotify raspotify main" | sudo tee "$RASPOTIFY_SOURCE_LIST" >/dev/null
+  fi
+
+  sudo apt-get update
+  sudo apt-get install -y --no-upgrade raspotify
+
+  local conf_file="/tmp/raspotify.conf"
+  local device_name="${SPOTIFY_DEVICE_NAME:-MusicStreamer}"
+  local bitrate="${SPOTIFY_BITRATE:-320}"
+  local audio_device
+  audio_device="$(spotify_alsa_device)"
+
+  cat > "$conf_file" <<EOF
+# Managed by MusicStreamer install.sh
+LIBRESPOT_NAME="$device_name"
+LIBRESPOT_BACKEND="alsa"
+LIBRESPOT_DEVICE="$audio_device"
+LIBRESPOT_BITRATE="$bitrate"
+LIBRESPOT_OPTIONS="--disable-audio-cache"
+EOF
+
+  sudo install -m 0644 "$conf_file" /etc/raspotify/conf
+  rm -f "$conf_file"
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable raspotify
+  sudo systemctl restart raspotify
+
+  echo "Raspotify installed and configured for device '$device_name' on ALSA device '$audio_device'."
 }
 
 if ! command -v sudo >/dev/null 2>&1; then
@@ -88,6 +150,8 @@ if [ ! -f "$ENV_FILE" ]; then
   source "$ENV_FILE"
   set +a
 fi
+
+install_raspotify
 
 if [ ! -d "$VENV_DIR" ]; then
   echo "Creating virtual environment in $VENV_DIR"

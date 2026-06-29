@@ -20,6 +20,12 @@ SPOTIFY_SETTINGS_FILE = PROJECT_DIR / "config" / "spotify-settings.json"
 SPOTIFY_ACCOUNTS_URL = "https://accounts.spotify.com"
 SPOTIFY_API_URL = "https://api.spotify.com/v1"
 SPOTIFY_SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing"
+RASPOTIFY_SERVICE_FILES = (
+    Path("/etc/systemd/system/raspotify.service"),
+    Path("/lib/systemd/system/raspotify.service"),
+    Path("/usr/lib/systemd/system/raspotify.service"),
+)
+RASPOTIFY_CONFIG_FILE = Path("/etc/raspotify/conf")
 _process: subprocess.Popen | None = None
 _last_error: str | None = None
 _lock = threading.Lock()
@@ -31,6 +37,36 @@ def _is_enabled() -> bool:
 
 def _is_process_running() -> bool:
     return _process is not None and _process.poll() is None
+
+
+def _raspotify_installed() -> bool:
+    return RASPOTIFY_CONFIG_FILE.exists() or any(path.exists() for path in RASPOTIFY_SERVICE_FILES)
+
+
+def _run_systemctl(*args: str) -> subprocess.CompletedProcess[str]:
+    systemctl = shutil.which("systemctl")
+
+    if systemctl is None:
+        raise RuntimeError("systemctl is not installed")
+
+    return subprocess.run(
+        [systemctl, *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _raspotify_running() -> bool:
+    if not _raspotify_installed():
+        return False
+
+    try:
+        result = _run_systemctl("is-active", "raspotify")
+    except (RuntimeError, subprocess.CalledProcessError):
+        return False
+
+    return result.stdout.strip() == "active"
 
 
 def _client_id() -> str:
@@ -404,8 +440,17 @@ def start_spotify() -> dict:
         _last_error = "Spotify disabled"
         return get_spotify_status()
 
+    if _raspotify_installed():
+        try:
+            _run_systemctl("start", "raspotify")
+            _last_error = None
+        except (RuntimeError, subprocess.CalledProcessError) as error:
+            _last_error = str(error)
+
+        return get_spotify_status()
+
     if player is None:
-        _last_error = "librespot is not installed"
+        _last_error = "Raspotify is not installed"
         return get_spotify_status()
 
     with _lock:
@@ -423,6 +468,15 @@ def start_spotify() -> dict:
 
 def stop_spotify() -> dict:
     global _last_error
+
+    if _raspotify_installed():
+        try:
+            _run_systemctl("stop", "raspotify")
+            _last_error = None
+        except (RuntimeError, subprocess.CalledProcessError) as error:
+            _last_error = str(error)
+
+        return get_spotify_status()
 
     with _lock:
         _stop_locked()
@@ -468,9 +522,10 @@ def control_playback(action: str) -> dict:
 
 def get_spotify_status() -> dict:
     enabled = _is_enabled()
-    installed = shutil.which("librespot") is not None
+    raspotify_installed = _raspotify_installed()
+    installed = raspotify_installed or shutil.which("librespot") is not None
     available = enabled and installed
-    playing = _is_process_running()
+    playing = _raspotify_running() if raspotify_installed else _is_process_running()
     authenticated = is_authenticated()
     ready_for_controls = _has_credentials() and authenticated
     playback = _current_playback()
@@ -489,7 +544,7 @@ def get_spotify_status() -> dict:
         label = "Link account"
     elif not installed:
         state = "missing"
-        label = "Install librespot"
+        label = "Install Raspotify"
     elif playing:
         state = "standby"
         label = "Connect"

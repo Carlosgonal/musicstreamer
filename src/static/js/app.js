@@ -29,9 +29,7 @@ const elements = {
   stationNameInput: document.querySelector("#station-name-input"),
   stationUrlInput: document.querySelector("#station-url-input"),
   stationCancel: document.querySelector("#station-cancel"),
-  networkState: document.querySelector("#network-state"),
   audioOutputSelect: document.querySelector("#audio-output-select"),
-  audioState: document.querySelector("#audio-state"),
   volumeControl: document.querySelector("#volume-control"),
   volumeState: document.querySelector("#volume-state"),
 };
@@ -74,7 +72,6 @@ function updateSystem(system) {
   elements.date.textContent = formatDate(system.date);
   elements.date.dateTime = system.date;
   elements.systemStatus.textContent = system.status;
-  elements.networkState.textContent = system.network;
   elements.volumeState.textContent = `Vol ${system.volume}%`;
   updateAudioOutput(system.audio);
 
@@ -113,7 +110,6 @@ function updateAudioOutput(audio) {
   }
 
   elements.audioOutputSelect.value = audio.output;
-  elements.audioState.textContent = elements.audioOutputSelect.selectedOptions[0]?.textContent || audio.output;
 }
 
 function updateRadio(radio) {
