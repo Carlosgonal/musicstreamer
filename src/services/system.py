@@ -1,4 +1,12 @@
 from datetime import datetime
+import os
+
+
+def get_runtime_status() -> str:
+    if os.getenv("FLASK_DEBUG", "0") == "1" or os.getenv("FLASK_ENV") == "development":
+        return "Development mode"
+
+    return "Ready"
 
 
 def get_system_status() -> dict:
@@ -8,7 +16,7 @@ def get_system_status() -> dict:
         "project": "MusicStreamer",
         "time": now.strftime("%H:%M"),
         "date": now.strftime("%Y-%m-%d"),
-        "status": "Development mode",
+        "status": get_runtime_status(),
         "network": "Local",
         "volume": 50,
     }
