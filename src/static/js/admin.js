@@ -126,11 +126,17 @@ async function save(event) {
       redirect_uri: elements.redirectUri.value.trim(),
     });
 
-    const spotify = await getJson("/api/spotify/status");
     currentSettings = settings;
     fillForm(settings);
-    renderStatus(settings, spotify);
     setMessage("Settings saved");
+
+    try {
+      const spotify = await getJson("/api/spotify/status");
+      renderStatus(settings, spotify);
+    } catch (statusError) {
+      renderStatus(settings, { available: false, state: "status unavailable" });
+      setMessage(`Settings saved. Status unavailable: ${statusError.message}`, true);
+    }
   } catch (error) {
     setMessage(`Save failed: ${error.message}`, true);
     console.error(error);

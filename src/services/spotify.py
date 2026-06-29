@@ -361,7 +361,7 @@ def _current_playback() -> dict | None:
 
     try:
         response = _spotify_request("GET", "/me/player")
-    except requests.RequestException as error:
+    except (RuntimeError, ValueError, requests.RequestException) as error:
         _last_error = str(error)
         return None
 
@@ -535,7 +535,7 @@ def get_spotify_status() -> dict:
     playing = _raspotify_running() if raspotify_installed else _is_process_running()
     authenticated = is_authenticated()
     ready_for_controls = _has_credentials() and authenticated
-    playback = _current_playback()
+    playback = _current_playback_safe()
 
     if playback and playback["is_playing"]:
         state = "playing"
@@ -575,3 +575,13 @@ def get_spotify_status() -> dict:
         "player": playback,
         "admin": get_admin_settings(),
     }
+
+
+def _current_playback_safe() -> dict | None:
+    global _last_error
+
+    try:
+        return _current_playback()
+    except Exception as error:
+        _last_error = str(error)
+        return None

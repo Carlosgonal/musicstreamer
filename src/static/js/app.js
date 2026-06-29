@@ -439,33 +439,57 @@ function queueVolumeUpdate() {
 }
 
 async function refresh() {
-  try {
-    const [system, radio, spotify] = await Promise.all([
-      getJson("/api/system/status"),
-      getJson("/api/radio/status"),
-      getJson("/api/spotify/status"),
-    ]);
+  const [systemResult, radioResult, spotifyResult] = await Promise.allSettled([
+    getJson("/api/system/status"),
+    getJson("/api/radio/status"),
+    getJson("/api/spotify/status"),
+  ]);
 
-    updateSystem(system);
-    updateRadio(radio);
-    updateSpotify(spotify);
-  } catch (error) {
+  if (systemResult.status === "fulfilled") {
+    updateSystem(systemResult.value);
+  }
+
+  if (radioResult.status === "fulfilled") {
+    updateRadio(radioResult.value);
+  }
+
+  if (spotifyResult.status === "fulfilled") {
+    updateSpotify(spotifyResult.value);
+  }
+
+  if ([systemResult, radioResult, spotifyResult].every((result) => result.status === "rejected")) {
     elements.systemStatus.textContent = "API unavailable";
-    console.error(error);
+    console.error(systemResult.reason, radioResult.reason, spotifyResult.reason);
+  } else if (systemResult.status === "rejected") {
+    elements.systemStatus.textContent = "System unavailable";
+    console.error(systemResult.reason);
+  } else if (radioResult.status === "rejected") {
+    elements.radioStatus.textContent = "Radio unavailable";
+    console.error(radioResult.reason);
+  } else if (spotifyResult.status === "rejected") {
+    elements.spotifyStatus.textContent = "Spotify unavailable";
+    console.error(spotifyResult.reason);
   }
 }
 
 async function init() {
-  try {
-    const [radioData, spotify] = await Promise.all([
-      getJson("/api/radio/stations"),
-      getJson("/api/spotify/status"),
-    ]);
-    loadStations(radioData.stations);
-    updateSpotify(spotify);
-  } catch (error) {
+  const [radioDataResult, spotifyResult] = await Promise.allSettled([
+    getJson("/api/radio/stations"),
+    getJson("/api/spotify/status"),
+  ]);
+
+  if (radioDataResult.status === "fulfilled") {
+    loadStations(radioDataResult.value.stations);
+  } else {
     elements.radioStatus.textContent = "Source error";
-    console.error(error);
+    console.error(radioDataResult.reason);
+  }
+
+  if (spotifyResult.status === "fulfilled") {
+    updateSpotify(spotifyResult.value);
+  } else {
+    elements.spotifyStatus.textContent = "Spotify unavailable";
+    console.error(spotifyResult.reason);
   }
 
   elements.radioToggle.addEventListener("click", toggleRadio);

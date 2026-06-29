@@ -8,12 +8,18 @@ radio_api = Blueprint("radio_api", __name__)
 
 @radio_api.get("/status")
 def status():
-    return jsonify(get_radio_status())
+    try:
+        return jsonify(get_radio_status())
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 503
 
 
 @radio_api.get("/stations")
 def stations():
-    return jsonify({"stations": list_stations()})
+    try:
+        return jsonify({"stations": list_stations()})
+    except OSError as error:
+        return jsonify({"error": str(error)}), 503
 
 
 @radio_api.post("/stations")
@@ -22,7 +28,7 @@ def add_station():
 
     try:
         station = save_station(payload)
-    except ValueError as error:
+    except (OSError, ValueError) as error:
         return jsonify({"error": str(error)}), 400
 
     return jsonify({"station": station, "stations": list_stations()})
@@ -31,9 +37,16 @@ def add_station():
 @radio_api.post("/play")
 def play():
     payload = request.get_json(silent=True) or {}
-    return jsonify(play_station(payload.get("station_id")))
+
+    try:
+        return jsonify(play_station(payload.get("station_id")))
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 503
 
 
 @radio_api.post("/stop")
 def stop():
-    return jsonify(stop_radio())
+    try:
+        return jsonify(stop_radio())
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 503
