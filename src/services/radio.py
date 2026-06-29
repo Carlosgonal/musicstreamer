@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import shutil
 import subprocess
 import threading
@@ -7,25 +9,39 @@ from services.system import get_audio_device
 
 DEFAULT_STATIONS = [
     {
-        "id": "fip",
-        "name": "FIP",
-        "frequency": "99.9",
-        "url": "https://icecast.radiofrance.fr/fip-midfi.mp3",
+        "id": "ser",
+        "name": "Cadena SER",
+        "frequency": "105.4",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/CADENASER.mp3",
     },
     {
-        "id": "bbc6",
-        "name": "BBC 6 Music",
-        "frequency": "100.3",
-        "url": "https://stream.live.vc.bbcmedia.co.uk/bbc_6music",
+        "id": "los40",
+        "name": "LOS40",
+        "frequency": "93.9",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/LOS40.mp3",
     },
     {
-        "id": "ambient",
-        "name": "Ambient Sleeping Pill",
-        "frequency": "101.1",
-        "url": "https://radio.stereoscenic.com/asp-h",
+        "id": "dial",
+        "name": "Cadena Dial",
+        "frequency": "91.7",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/CADENADIAL.mp3",
+    },
+    {
+        "id": "radio3",
+        "name": "Radio 3",
+        "frequency": "93.2",
+        "url": "https://rtvelivestream.akamaized.net/rtvesec/rne/rne_r3_main.m3u8",
+    },
+    {
+        "id": "rne",
+        "name": "RNE",
+        "frequency": "88.2",
+        "url": "https://rtvelivestream.akamaized.net/rtvesec/rne/rne_r1_main.m3u8",
     },
 ]
 
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+RADIO_CONFIG_FILE = PROJECT_DIR / "config" / "radio.json"
 _process: subprocess.Popen | None = None
 _current_station: dict | None = None
 _last_error: str | None = None
@@ -48,13 +64,74 @@ def _build_mpv_command(player: str, url: str) -> list[str]:
     return command
 
 
+def _station_id(frequency: str, name: str) -> str:
+    normalized_frequency = "".join(character for character in frequency if character.isdigit())
+    normalized_name = "".join(character.lower() for character in name if character.isalnum())
+    return f"{normalized_name or 'station'}-{normalized_frequency or 'fm'}"
+
+
+def _normalize_station(station: dict) -> dict | None:
+    name = str(station.get("name", "")).strip()
+    frequency = str(station.get("frequency", "")).strip()
+    url = str(station.get("url", "")).strip()
+
+    if not name or not frequency or not url:
+        return None
+
+    try:
+        frequency_value = float(frequency)
+    except ValueError:
+        return None
+
+    if frequency_value < 87.5 or frequency_value > 108:
+        return None
+
+    frequency = f"{frequency_value:.1f}"
+
+    return {
+        "id": str(station.get("id", "")).strip() or _station_id(frequency, name),
+        "name": name,
+        "frequency": frequency,
+        "url": url,
+    }
+
+
+def _read_station_config() -> list[dict]:
+    try:
+        with RADIO_CONFIG_FILE.open("r", encoding="utf-8") as config_file:
+            config = json.load(config_file)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return DEFAULT_STATIONS
+
+    raw_stations = config.get("stations", []) if isinstance(config, dict) else []
+    stations = [
+        normalized
+        for station in raw_stations
+        if isinstance(station, dict)
+        for normalized in [_normalize_station(station)]
+        if normalized is not None
+    ]
+
+    return stations or DEFAULT_STATIONS
+
+
+def _write_station_config(stations: list[dict]) -> None:
+    RADIO_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    with RADIO_CONFIG_FILE.open("w", encoding="utf-8") as config_file:
+        json.dump({"stations": stations}, config_file, indent=2)
+        config_file.write("\n")
+
+
 def _find_station(station_id: str | None) -> dict:
+    stations = list_stations()
+
     if station_id:
-        for station in DEFAULT_STATIONS:
+        for station in stations:
             if station["id"] == station_id or station["frequency"] == station_id:
                 return station
 
-    return DEFAULT_STATIONS[0]
+    return stations[0]
 
 
 def _is_process_running() -> bool:
@@ -79,7 +156,24 @@ def _stop_locked() -> None:
 
 
 def list_stations() -> list[dict]:
-    return DEFAULT_STATIONS
+    return _read_station_config()
+
+
+def save_station(station: dict) -> dict:
+    normalized = _normalize_station(station)
+
+    if normalized is None:
+        raise ValueError("station requires name, frequency and url")
+
+    stations = [
+        existing
+        for existing in list_stations()
+        if existing["id"] != normalized["id"] and existing["frequency"] != normalized["frequency"]
+    ]
+    stations.append(normalized)
+    stations.sort(key=lambda item: float(item["frequency"]))
+    _write_station_config(stations)
+    return normalized
 
 
 def play_station(station_id: str | None = None) -> dict:

@@ -11,6 +11,14 @@ const elements = {
   radioAction: document.querySelector("#radio-action"),
   radioPrev: document.querySelector("#radio-prev"),
   radioNext: document.querySelector("#radio-next"),
+  manualFrequency: document.querySelector("#manual-frequency"),
+  manualTune: document.querySelector("#manual-tune"),
+  manualSave: document.querySelector("#manual-save"),
+  stationDialog: document.querySelector("#station-dialog"),
+  stationForm: document.querySelector("#station-form"),
+  stationNameInput: document.querySelector("#station-name-input"),
+  stationUrlInput: document.querySelector("#station-url-input"),
+  stationCancel: document.querySelector("#station-cancel"),
   networkState: document.querySelector("#network-state"),
   audioOutputSelect: document.querySelector("#audio-output-select"),
   audioState: document.querySelector("#audio-state"),
@@ -120,11 +128,93 @@ function setSelectedStation(stationId) {
   if (station) {
     elements.radioName.textContent = station.name;
     elements.radioFrequency.textContent = station.frequency;
+    elements.manualFrequency.value = station.frequency;
   }
 }
 
 function getSelectedStation() {
   return stations.find((station) => station.id === selectedStationId) || stations[0] || null;
+}
+
+function findStationByFrequency(frequency) {
+  if (!Number.isFinite(Number(frequency))) {
+    return null;
+  }
+
+  const normalizedFrequency = Number(frequency).toFixed(1);
+  return stations.find((station) => Number(station.frequency).toFixed(1) === normalizedFrequency) || null;
+}
+
+async function tuneManualFrequency() {
+  if (!Number.isFinite(Number(elements.manualFrequency.value))) {
+    elements.radioStatus.textContent = "Invalid frequency";
+    return;
+  }
+
+  const station = findStationByFrequency(elements.manualFrequency.value);
+
+  if (!station) {
+    elements.radioStatus.textContent = "Frequency not saved";
+    elements.radioFrequency.textContent = Number(elements.manualFrequency.value).toFixed(1);
+    elements.radioName.textContent = "Manual";
+    return;
+  }
+
+  setSelectedStation(station.id);
+
+  if (radioState === "playing") {
+    try {
+      const radio = await playSelectedStation();
+      updateRadio(radio);
+    } catch (error) {
+      elements.radioStatus.textContent = "Radio error";
+      console.error(error);
+    }
+  }
+}
+
+function openStationDialog() {
+  const station = findStationByFrequency(elements.manualFrequency.value);
+  elements.stationNameInput.value = station?.name || "";
+  elements.stationUrlInput.value = station?.url || "";
+
+  if (typeof elements.stationDialog.showModal === "function") {
+    elements.stationDialog.showModal();
+  } else {
+    elements.stationDialog.setAttribute("open", "");
+  }
+}
+
+function closeStationDialog() {
+  if (typeof elements.stationDialog.close === "function") {
+    elements.stationDialog.close();
+  } else {
+    elements.stationDialog.removeAttribute("open");
+  }
+}
+
+async function saveManualStation() {
+  if (!Number.isFinite(Number(elements.manualFrequency.value))) {
+    elements.radioStatus.textContent = "Invalid frequency";
+    return;
+  }
+
+  const payload = {
+    frequency: Number(elements.manualFrequency.value).toFixed(1),
+    name: elements.stationNameInput.value.trim(),
+    url: elements.stationUrlInput.value.trim(),
+  };
+
+  try {
+    const data = await postJson("/api/radio/stations", payload);
+    loadStations(data.stations);
+    setSelectedStation(data.station.id);
+    elements.radioStatus.textContent = "Station saved";
+    closeStationDialog();
+  } catch (error) {
+    elements.radioStatus.textContent = "Save error";
+    console.error(error);
+  }
 }
 
 async function selectStationOffset(offset) {
@@ -241,6 +331,13 @@ async function init() {
   elements.radioToggle.addEventListener("click", toggleRadio);
   elements.radioPrev.addEventListener("click", () => selectStationOffset(-1));
   elements.radioNext.addEventListener("click", () => selectStationOffset(1));
+  elements.manualTune.addEventListener("click", tuneManualFrequency);
+  elements.manualSave.addEventListener("click", openStationDialog);
+  elements.stationCancel.addEventListener("click", closeStationDialog);
+  elements.stationForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveManualStation();
+  });
   elements.audioOutputSelect.addEventListener("change", () => {
     setAudioOutput(elements.audioOutputSelect.value);
   });

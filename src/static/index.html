@@ -43,6 +43,23 @@
       <button id="radio-next" class="tune-button" type="button" aria-label="Next station">+</button>
     </section>
 
+    <section class="manual-panel" aria-label="Manual station selector">
+      <input id="manual-frequency" type="number" min="87.5" max="108" step="0.1" value="99.9" aria-label="Manual frequency">
+      <button id="manual-tune" type="button">Ir</button>
+      <button id="manual-save" type="button">Guardar</button>
+    </section>
+
+    <dialog id="station-dialog" class="station-dialog">
+      <form id="station-form" method="dialog">
+        <input id="station-name-input" type="text" placeholder="Emisora" aria-label="Station name" required>
+        <input id="station-url-input" type="url" placeholder="Stream URL" aria-label="Stream URL" required>
+        <menu>
+          <button id="station-cancel" type="button">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </menu>
+      </form>
+    </dialog>
+
     <section class="audio-panel" aria-label="Audio controls">
       <label class="audio-output">
         <span>Out</span>
