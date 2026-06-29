@@ -198,14 +198,15 @@ def get_authorize_url() -> str:
     config["oauth_state"] = state
     _write_config(config)
 
-    return f"{SPOTIFY_ACCOUNTS_URL}/authorize?{urlencode({
-        'client_id': _client_id(),
-        'response_type': 'code',
-        'redirect_uri': _redirect_uri(),
-        'scope': SPOTIFY_SCOPES,
-        'state': state,
-    })}"
+    params = {
+        "client_id": _client_id(),
+        "response_type": "code",
+        "redirect_uri": _redirect_uri(),
+        "scope": SPOTIFY_SCOPES,
+        "state": state,
+    }
 
+    return f"{SPOTIFY_ACCOUNTS_URL}/authorize?{urlencode(params)}"
 
 def _auth_header() -> dict:
     raw_credentials = f"{_client_id()}:{_client_secret()}".encode("utf-8")
