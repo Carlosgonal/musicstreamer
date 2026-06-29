@@ -85,6 +85,11 @@ if [ ! -f "$ENV_FILE" ]; then
   set +a
 fi
 
+if [ "${SPOTIFY_ENABLED:-false}" = "true" ] && ! command -v librespot >/dev/null 2>&1; then
+  echo "Spotify Connect is enabled, but librespot was not found."
+  echo "Install librespot on the Raspberry Pi for Spotify support."
+fi
+
 if [ ! -d "$VENV_DIR" ]; then
   echo "Creating virtual environment in $VENV_DIR"
   python3 -m venv "$VENV_DIR"

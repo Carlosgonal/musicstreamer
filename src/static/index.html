@@ -33,20 +33,37 @@
       </button>
     </section>
 
-    <section class="tuner-panel" aria-label="Radio tuner">
-      <button id="radio-prev" class="tune-button" type="button" aria-label="Previous station">-</button>
-      <div class="tuner-display">
-        <p class="label">FM</p>
-        <p id="radio-frequency" class="frequency">99.9</p>
-        <p id="radio-name" class="now-playing">Select station</p>
-      </div>
-      <button id="radio-next" class="tune-button" type="button" aria-label="Next station">+</button>
+    <section id="radio-view" class="content-view radio-view" aria-label="Radio">
+      <section class="tuner-panel" aria-label="Radio tuner">
+        <button id="radio-prev" class="tune-button" type="button" aria-label="Previous station">-</button>
+        <div class="tuner-display">
+          <p class="label">FM</p>
+          <p id="radio-frequency" class="frequency">99.9</p>
+          <p id="radio-name" class="now-playing">Select station</p>
+        </div>
+        <button id="radio-next" class="tune-button" type="button" aria-label="Next station">+</button>
+      </section>
+
+      <section class="manual-panel" aria-label="Manual station selector">
+        <input id="manual-frequency" type="number" min="87.5" max="108" step="0.1" value="99.9" aria-label="Manual frequency">
+        <button id="manual-tune" type="button">Ir</button>
+        <button id="manual-save" type="button">Guardar</button>
+      </section>
     </section>
 
-    <section class="manual-panel" aria-label="Manual station selector">
-      <input id="manual-frequency" type="number" min="87.5" max="108" step="0.1" value="99.9" aria-label="Manual frequency">
-      <button id="manual-tune" type="button">Ir</button>
-      <button id="manual-save" type="button">Guardar</button>
+    <section id="spotify-view" class="content-view spotify-view hidden" aria-label="Spotify player">
+      <img id="spotify-cover" class="spotify-cover" alt="" src="">
+      <div class="spotify-info">
+        <p id="spotify-track" class="spotify-track">Spotify</p>
+        <p id="spotify-artist" class="spotify-artist">Vincula tu cuenta</p>
+        <progress id="spotify-progress" class="spotify-progress" value="0" max="100"></progress>
+        <p id="spotify-time" class="spotify-time">0:00 / 0:00</p>
+      </div>
+      <div class="spotify-controls" aria-label="Spotify controls">
+        <button id="spotify-prev" type="button" aria-label="Previous track">Prev</button>
+        <button id="spotify-playpause" type="button" aria-label="Pause or continue">Play</button>
+        <button id="spotify-next" type="button" aria-label="Next track">Next</button>
+      </div>
     </section>
 
     <dialog id="station-dialog" class="station-dialog">

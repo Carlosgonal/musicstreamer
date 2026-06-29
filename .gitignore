@@ -4,3 +4,5 @@ __pycache__/
 .env
 .cache/
 instance/
+config/spotify.json
+config/spotify-settings.json

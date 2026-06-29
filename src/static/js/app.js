@@ -4,6 +4,16 @@ const elements = {
   systemStatus: document.querySelector("#system-status"),
   spotifyStatus: document.querySelector("#spotify-status"),
   spotifySource: document.querySelector("#spotify-source"),
+  spotifyView: document.querySelector("#spotify-view"),
+  spotifyCover: document.querySelector("#spotify-cover"),
+  spotifyTrack: document.querySelector("#spotify-track"),
+  spotifyArtist: document.querySelector("#spotify-artist"),
+  spotifyProgress: document.querySelector("#spotify-progress"),
+  spotifyTime: document.querySelector("#spotify-time"),
+  spotifyPrev: document.querySelector("#spotify-prev"),
+  spotifyPlayPause: document.querySelector("#spotify-playpause"),
+  spotifyNext: document.querySelector("#spotify-next"),
+  radioView: document.querySelector("#radio-view"),
   radioName: document.querySelector("#radio-name"),
   radioFrequency: document.querySelector("#radio-frequency"),
   radioStatus: document.querySelector("#radio-status"),
@@ -27,6 +37,8 @@ const elements = {
 };
 
 let radioState = "standby";
+let spotifyState = "standby";
+let activeSource = "radio";
 let selectedStationId = "";
 let stations = [];
 let volumeDebounceId = null;
@@ -102,15 +114,78 @@ function updateRadio(radio) {
   elements.radioStatus.textContent = radio.error || radio.label;
   elements.radioAction.textContent = radio.state === "playing" ? "Stop" : "Play";
   elements.radioToggle.classList.toggle("playing", radio.state === "playing");
+  elements.radioToggle.classList.toggle("active", activeSource === "radio");
 
   if (radio.station?.id) {
     setSelectedStation(radio.station.id);
   }
+
+  if (radio.state === "playing") {
+    setActiveSource("radio");
+  }
 }
 
 function updateSpotify(spotify) {
-  elements.spotifyStatus.textContent = spotify.available ? spotify.label : "Not set";
+  spotifyState = spotify.state;
+  elements.spotifyStatus.textContent = spotify.available ? spotify.label : spotify.label;
   elements.spotifySource.classList.toggle("disabled", !spotify.available);
+  elements.spotifySource.classList.toggle("playing", spotify.state === "playing");
+  elements.spotifySource.classList.toggle("active", activeSource === "spotify");
+  elements.radioToggle.classList.toggle("active", activeSource === "radio");
+  elements.spotifySource.disabled = spotify.state === "disabled" || spotify.state === "setup";
+  updateSpotifyPlayer(spotify);
+
+  if (spotify.state === "playing") {
+    setActiveSource("spotify");
+  }
+}
+
+function setActiveSource(source) {
+  activeSource = source;
+  elements.spotifyView.classList.toggle("hidden", source !== "spotify");
+  elements.radioView.classList.toggle("hidden", source !== "radio");
+  elements.spotifySource.classList.toggle("active", source === "spotify");
+  elements.radioToggle.classList.toggle("active", source === "radio");
+}
+
+function formatDuration(milliseconds) {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
+function updateSpotifyPlayer(spotify) {
+  const player = spotify.player;
+  const controlsAvailable = spotify.controls_available && player;
+
+  if (!spotify.credentials_configured) {
+    elements.spotifyTrack.textContent = "Spotify";
+    elements.spotifyArtist.textContent = "Configura API keys";
+  } else if (!spotify.authenticated) {
+    elements.spotifyTrack.textContent = "Spotify";
+    elements.spotifyArtist.textContent = "Pulsa Spotify para vincular";
+  } else if (!player) {
+    elements.spotifyTrack.textContent = spotify.device_name;
+    elements.spotifyArtist.textContent = "Abre Spotify y elige este dispositivo";
+  } else {
+    elements.spotifyTrack.textContent = player.track;
+    elements.spotifyArtist.textContent = player.artist || player.album || "Spotify";
+  }
+
+  if (player?.image) {
+    elements.spotifyCover.src = player.image;
+  } else {
+    elements.spotifyCover.removeAttribute("src");
+  }
+  elements.spotifyCover.classList.toggle("empty", !player?.image);
+  elements.spotifyProgress.max = player?.duration_ms || 100;
+  elements.spotifyProgress.value = player?.progress_ms || 0;
+  elements.spotifyTime.textContent = `${formatDuration(player?.progress_ms || 0)} / ${formatDuration(player?.duration_ms || 0)}`;
+  elements.spotifyPlayPause.textContent = player?.is_playing ? "Pause" : "Play";
+  elements.spotifyPrev.disabled = !controlsAvailable;
+  elements.spotifyPlayPause.disabled = !spotify.authenticated;
+  elements.spotifyNext.disabled = !controlsAvailable;
 }
 
 function loadStations(nextStations) {
@@ -241,9 +316,18 @@ async function toggleRadio() {
   elements.radioToggle.disabled = true;
 
   try {
-    const radio = radioState === "playing"
-      ? await postJson("/api/radio/stop")
-      : await playSelectedStation();
+    let radio;
+
+    if (radioState === "playing") {
+      radio = await postJson("/api/radio/stop");
+    } else {
+      if (spotifyState === "playing") {
+        const spotify = await postJson("/api/spotify/stop");
+        updateSpotify(spotify);
+      }
+
+      radio = await playSelectedStation();
+    }
 
     updateRadio(radio);
   } catch (error) {
@@ -256,6 +340,50 @@ async function toggleRadio() {
 
 async function playSelectedStation() {
   return postJson("/api/radio/play", { station_id: selectedStationId });
+}
+
+async function toggleSpotify() {
+  elements.spotifySource.disabled = true;
+
+  try {
+    let spotify;
+    setActiveSource("spotify");
+
+    if (spotifyState === "auth") {
+      window.location.href = "/api/spotify/login";
+      return;
+    }
+
+    if (spotifyState === "playing") {
+      spotify = await postJson("/api/spotify/stop");
+    } else {
+      if (radioState === "playing") {
+        const radio = await postJson("/api/radio/stop");
+        updateRadio(radio);
+      }
+
+      spotify = await postJson("/api/spotify/start");
+    }
+
+    updateSpotify(spotify);
+  } catch (error) {
+    elements.systemStatus.textContent = "Spotify error";
+    console.error(error);
+  } finally {
+    if (spotifyState !== "missing" && spotifyState !== "disabled") {
+      elements.spotifySource.disabled = false;
+    }
+  }
+}
+
+async function controlSpotify(action) {
+  try {
+    const spotify = await postJson(`/api/spotify/control/${action}`);
+    updateSpotify(spotify);
+  } catch (error) {
+    elements.systemStatus.textContent = "Spotify error";
+    console.error(error);
+  }
 }
 
 function updateVolumeLabel(volume) {
@@ -282,6 +410,11 @@ async function setAudioOutput(output) {
     if (radioState === "playing") {
       const radio = await postJson("/api/radio/play", { station_id: selectedStationId });
       updateRadio(radio);
+    }
+
+    if (spotifyState === "playing") {
+      const spotify = await postJson("/api/spotify/start");
+      updateSpotify(spotify);
     }
   } catch (error) {
     elements.systemStatus.textContent = "Audio error";
@@ -329,6 +462,12 @@ async function init() {
   }
 
   elements.radioToggle.addEventListener("click", toggleRadio);
+  elements.spotifySource.addEventListener("click", toggleSpotify);
+  elements.spotifyPrev.addEventListener("click", () => controlSpotify("previous"));
+  elements.spotifyPlayPause.addEventListener("click", () => {
+    controlSpotify(spotifyState === "playing" ? "pause" : "play");
+  });
+  elements.spotifyNext.addEventListener("click", () => controlSpotify("next"));
   elements.radioPrev.addEventListener("click", () => selectStationOffset(-1));
   elements.radioNext.addEventListener("click", () => selectStationOffset(1));
   elements.manualTune.addEventListener("click", tuneManualFrequency);

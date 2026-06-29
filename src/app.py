@@ -23,6 +23,10 @@ def create_app() -> Flask:
     def index():
         return send_from_directory(STATIC_DIR, "index.html")
 
+    @app.get("/admin")
+    def admin():
+        return send_from_directory(STATIC_DIR, "admin.html")
+
     return app
 
 
