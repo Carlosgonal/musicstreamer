@@ -1,5 +1,4 @@
 const elements = {
-  projectName: document.querySelector("#project-name"),
   clock: document.querySelector("#clock"),
   systemStatus: document.querySelector("#system-status"),
   spotifyStatus: document.querySelector("#spotify-status"),
@@ -69,7 +68,6 @@ async function postJson(url, payload = {}) {
 }
 
 function updateSystem(system) {
-  elements.projectName.textContent = system.project;
   elements.clock.textContent = system.time;
   elements.clock.dateTime = `${system.date}T${system.time}`;
   elements.systemStatus.textContent = system.status;

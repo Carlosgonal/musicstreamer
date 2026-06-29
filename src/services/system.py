@@ -32,12 +32,14 @@ def _audio_outputs() -> list[dict]:
             "id": "jack",
             "label": "Jack",
             "device": jack_device,
+            "mixer_card": os.getenv("MUSICSTREAMER_JACK_ALSA_CARD", _alsa_card_from_device(jack_device)),
             "mixers": _split_controls(os.getenv("MUSICSTREAMER_JACK_ALSA_MIXER", "Headphone,Master,PCM")),
         },
         {
             "id": "hdmi",
             "label": "HDMI",
             "device": hdmi_device,
+            "mixer_card": os.getenv("MUSICSTREAMER_HDMI_ALSA_CARD", _alsa_card_from_device(hdmi_device)),
             "mixers": _split_controls(os.getenv("MUSICSTREAMER_HDMI_ALSA_MIXER", "HDMI,PCM,Master")),
         },
     ]
@@ -45,6 +47,11 @@ def _audio_outputs() -> list[dict]:
 
 def _split_controls(value: str) -> list[str]:
     return [control.strip() for control in value.split(",") if control.strip()]
+
+
+def _alsa_card_from_device(device: str) -> str:
+    match = re.search(r"(?:^|[:,])CARD=([^,]+)", device)
+    return match.group(1) if match else ""
 
 
 def _read_audio_config() -> dict:
@@ -115,37 +122,42 @@ def get_audio_status() -> dict:
     }
 
 
-def _configured_volume_controls() -> list[str]:
+def _configured_volume_controls() -> tuple[list[str], str]:
     configured = os.getenv("MUSICSTREAMER_ALSA_MIXER", "").strip()
 
     if configured:
-        return _split_controls(configured)
+        return _split_controls(configured), os.getenv("MUSICSTREAMER_ALSA_CARD", "").strip()
 
     output = _find_audio_output(get_audio_output_id())
 
     if output is not None and output["mixers"]:
-        return output["mixers"]
+        return output["mixers"], output["mixer_card"]
 
-    return list(VOLUME_CONTROLS)
+    return list(VOLUME_CONTROLS), os.getenv("MUSICSTREAMER_ALSA_CARD", "").strip()
 
 
-def _run_amixer(args: list[str]) -> subprocess.CompletedProcess[str]:
+def _run_amixer(args: list[str], card: str = "") -> subprocess.CompletedProcess[str]:
     amixer = shutil.which("amixer")
 
     if amixer is None:
         raise RuntimeError("amixer is not installed")
 
+    command = [amixer, "-M"]
+
+    if card:
+        command.extend(["-c", card])
+
     return subprocess.run(
-        [amixer, "-M", *args],
+        [*command, *args],
         check=True,
         capture_output=True,
         text=True,
     )
 
 
-def _read_control_volume(control: str) -> int | None:
+def _read_control_volume(control: str, card: str = "") -> int | None:
     try:
-        result = _run_amixer(["sget", control])
+        result = _run_amixer(["sget", control], card)
     except (RuntimeError, subprocess.CalledProcessError):
         return None
 
@@ -158,8 +170,10 @@ def _read_control_volume(control: str) -> int | None:
 
 
 def get_volume() -> int:
-    for control in _configured_volume_controls():
-        volume = _read_control_volume(control)
+    controls, card = _configured_volume_controls()
+
+    for control in controls:
+        volume = _read_control_volume(control, card)
 
         if volume is not None:
             return volume
@@ -169,10 +183,11 @@ def get_volume() -> int:
 
 def set_volume(volume: int) -> int:
     clamped_volume = max(0, min(100, int(volume)))
+    controls, card = _configured_volume_controls()
 
-    for control in _configured_volume_controls():
+    for control in controls:
         try:
-            _run_amixer(["sset", control, f"{clamped_volume}%"])
+            _run_amixer(["sset", control, f"{clamped_volume}%"], card)
             return get_volume()
         except subprocess.CalledProcessError:
             continue
