@@ -1,23 +1,27 @@
-import os
 import shutil
 import subprocess
 import threading
+
+from services.system import get_audio_device
 
 
 DEFAULT_STATIONS = [
     {
         "id": "fip",
         "name": "FIP",
+        "frequency": "99.9",
         "url": "https://icecast.radiofrance.fr/fip-midfi.mp3",
     },
     {
         "id": "bbc6",
         "name": "BBC 6 Music",
+        "frequency": "100.3",
         "url": "https://stream.live.vc.bbcmedia.co.uk/bbc_6music",
     },
     {
         "id": "ambient",
         "name": "Ambient Sleeping Pill",
+        "frequency": "101.1",
         "url": "https://radio.stereoscenic.com/asp-h",
     },
 ]
@@ -35,7 +39,7 @@ def _build_mpv_command(player: str, url: str) -> list[str]:
         "--really-quiet",
         "--force-window=no",
     ]
-    audio_device = os.getenv("MUSICSTREAMER_MPV_AUDIO_DEVICE", "").strip()
+    audio_device = get_audio_device()
 
     if audio_device:
         command.append(f"--audio-device={audio_device}")
@@ -47,7 +51,7 @@ def _build_mpv_command(player: str, url: str) -> list[str]:
 def _find_station(station_id: str | None) -> dict:
     if station_id:
         for station in DEFAULT_STATIONS:
-            if station["id"] == station_id:
+            if station["id"] == station_id or station["frequency"] == station_id:
                 return station
 
     return DEFAULT_STATIONS[0]

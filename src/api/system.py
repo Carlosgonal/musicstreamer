@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from services.system import get_system_status, set_volume
+from services.system import get_system_status, set_audio_output, set_volume
 
 
 system_api = Blueprint("system_api", __name__)
@@ -24,5 +24,18 @@ def volume():
         set_volume(requested_volume)
     except RuntimeError as error:
         return jsonify({"error": str(error)}), 503
+
+    return jsonify(get_system_status())
+
+
+@system_api.post("/audio-output")
+def audio_output():
+    payload = request.get_json(silent=True) or {}
+    output_id = str(payload.get("output", "")).strip()
+
+    try:
+        set_audio_output(output_id)
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
 
     return jsonify(get_system_status())

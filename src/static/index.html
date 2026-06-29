@@ -22,22 +22,45 @@
       <span id="radio-status">Waiting</span>
     </section>
 
-    <section class="radio-panel" aria-label="Radio controls">
-      <div>
-        <p class="label">Radio</p>
-        <p id="radio-name" class="now-playing">Select station</p>
-      </div>
-      <button id="radio-toggle" class="play-button" type="button">Play</button>
+    <section class="source-panel" aria-label="Sources">
+      <button id="spotify-source" class="source-button" type="button">
+        <span>Spotify</span>
+        <strong id="spotify-status">Ready</strong>
+      </button>
+      <button id="radio-toggle" class="source-button active" type="button">
+        <span>Radio</span>
+        <strong id="radio-action">Play</strong>
+      </button>
     </section>
 
-    <section id="station-list" class="station-list" aria-label="Radio stations"></section>
+    <section class="tuner-panel" aria-label="Radio tuner">
+      <button id="radio-prev" class="tune-button" type="button" aria-label="Previous station">-</button>
+      <div class="tuner-display">
+        <p class="label">FM</p>
+        <p id="radio-frequency" class="frequency">99.9</p>
+        <p id="radio-name" class="now-playing">Select station</p>
+      </div>
+      <button id="radio-next" class="tune-button" type="button" aria-label="Next station">+</button>
+    </section>
 
-    <footer class="bottom-bar">
-      <span id="network-state">Local</span>
+    <section class="audio-panel" aria-label="Audio controls">
+      <label class="audio-output">
+        <span>Out</span>
+        <select id="audio-output-select" aria-label="Audio output">
+          <option value="jack">Jack</option>
+          <option value="hdmi">HDMI</option>
+        </select>
+      </label>
       <label class="volume-control">
         <input id="volume-control" type="range" min="0" max="100" step="1" value="50" aria-label="Volume">
       </label>
       <span id="volume-state">Vol 50%</span>
+    </section>
+
+    <footer class="bottom-bar">
+      <span id="network-state">Local</span>
+      <span class="home-indicator" aria-hidden="true"></span>
+      <span id="audio-state">Jack</span>
     </footer>
   </main>
 

@@ -1,5 +1,7 @@
 from datetime import datetime
+import json
 import os
+from pathlib import Path
 import re
 import shutil
 import subprocess
@@ -7,6 +9,8 @@ import subprocess
 
 DEFAULT_VOLUME = 50
 VOLUME_CONTROLS = ("Headphone", "Master", "PCM")
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+AUDIO_CONFIG_FILE = PROJECT_DIR / "config" / "audio.json"
 
 
 def get_runtime_status() -> str:
@@ -16,11 +20,111 @@ def get_runtime_status() -> str:
     return "Ready"
 
 
+def _audio_outputs() -> list[dict]:
+    jack_device = os.getenv(
+        "MUSICSTREAMER_JACK_AUDIO_DEVICE",
+        os.getenv("MUSICSTREAMER_MPV_AUDIO_DEVICE", "alsa/plughw:CARD=Headphones,DEV=0"),
+    )
+    hdmi_device = os.getenv("MUSICSTREAMER_HDMI_AUDIO_DEVICE", "alsa/hdmi:CARD=vc4hdmi0,DEV=0")
+
+    return [
+        {
+            "id": "jack",
+            "label": "Jack",
+            "device": jack_device,
+            "mixers": _split_controls(os.getenv("MUSICSTREAMER_JACK_ALSA_MIXER", "Headphone,Master,PCM")),
+        },
+        {
+            "id": "hdmi",
+            "label": "HDMI",
+            "device": hdmi_device,
+            "mixers": _split_controls(os.getenv("MUSICSTREAMER_HDMI_ALSA_MIXER", "HDMI,PCM,Master")),
+        },
+    ]
+
+
+def _split_controls(value: str) -> list[str]:
+    return [control.strip() for control in value.split(",") if control.strip()]
+
+
+def _read_audio_config() -> dict:
+    try:
+        with AUDIO_CONFIG_FILE.open("r", encoding="utf-8") as config_file:
+            config = json.load(config_file)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+
+    return config if isinstance(config, dict) else {}
+
+
+def _write_audio_config(config: dict) -> None:
+    AUDIO_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    with AUDIO_CONFIG_FILE.open("w", encoding="utf-8") as config_file:
+        json.dump(config, config_file, indent=2)
+        config_file.write("\n")
+
+
+def _find_audio_output(output_id: str | None) -> dict | None:
+    for output in _audio_outputs():
+        if output["id"] == output_id:
+            return output
+
+    return None
+
+
+def get_audio_output_id() -> str:
+    config = _read_audio_config()
+    configured = str(config.get("audio_output", "")).strip()
+
+    if _find_audio_output(configured):
+        return configured
+
+    default_output = os.getenv("MUSICSTREAMER_AUDIO_OUTPUT", "jack").strip()
+
+    if _find_audio_output(default_output):
+        return default_output
+
+    return "jack"
+
+
+def set_audio_output(output_id: str) -> dict:
+    output = _find_audio_output(output_id)
+
+    if output is None:
+        raise ValueError("unknown audio output")
+
+    _write_audio_config({"audio_output": output["id"]})
+    return output
+
+
+def get_audio_device() -> str:
+    output = _find_audio_output(get_audio_output_id())
+    return output["device"] if output else ""
+
+
+def get_audio_status() -> dict:
+    selected_output = get_audio_output_id()
+
+    return {
+        "output": selected_output,
+        "outputs": [
+            {"id": output["id"], "label": output["label"]}
+            for output in _audio_outputs()
+        ],
+    }
+
+
 def _configured_volume_controls() -> list[str]:
     configured = os.getenv("MUSICSTREAMER_ALSA_MIXER", "").strip()
 
     if configured:
-        return [control.strip() for control in configured.split(",") if control.strip()]
+        return _split_controls(configured)
+
+    output = _find_audio_output(get_audio_output_id())
+
+    if output is not None and output["mixers"]:
+        return output["mixers"]
 
     return list(VOLUME_CONTROLS)
 
@@ -86,4 +190,5 @@ def get_system_status() -> dict:
         "status": get_runtime_status(),
         "network": "Local",
         "volume": get_volume(),
+        "audio": get_audio_status(),
     }

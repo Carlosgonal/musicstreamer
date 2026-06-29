@@ -2,17 +2,25 @@ const elements = {
   projectName: document.querySelector("#project-name"),
   clock: document.querySelector("#clock"),
   systemStatus: document.querySelector("#system-status"),
+  spotifyStatus: document.querySelector("#spotify-status"),
+  spotifySource: document.querySelector("#spotify-source"),
   radioName: document.querySelector("#radio-name"),
+  radioFrequency: document.querySelector("#radio-frequency"),
   radioStatus: document.querySelector("#radio-status"),
-  stationList: document.querySelector("#station-list"),
   radioToggle: document.querySelector("#radio-toggle"),
+  radioAction: document.querySelector("#radio-action"),
+  radioPrev: document.querySelector("#radio-prev"),
+  radioNext: document.querySelector("#radio-next"),
   networkState: document.querySelector("#network-state"),
+  audioOutputSelect: document.querySelector("#audio-output-select"),
+  audioState: document.querySelector("#audio-state"),
   volumeControl: document.querySelector("#volume-control"),
   volumeState: document.querySelector("#volume-state"),
 };
 
 let radioState = "standby";
 let selectedStationId = "";
+let stations = [];
 let volumeDebounceId = null;
 let isVolumeDragging = false;
 
@@ -47,18 +55,44 @@ function updateSystem(system) {
   elements.systemStatus.textContent = system.status;
   elements.networkState.textContent = system.network;
   elements.volumeState.textContent = `Vol ${system.volume}%`;
+  updateAudioOutput(system.audio);
 
   if (!isVolumeDragging) {
     elements.volumeControl.value = system.volume;
   }
 }
 
+function updateAudioOutput(audio) {
+  if (!audio) {
+    return;
+  }
+
+  const currentOptions = Array.from(elements.audioOutputSelect.options).map((option) => option.value);
+  const nextOptions = audio.outputs.map((output) => output.id);
+
+  if (currentOptions.join("|") !== nextOptions.join("|")) {
+    elements.audioOutputSelect.replaceChildren();
+
+    for (const output of audio.outputs) {
+      const option = document.createElement("option");
+      option.value = output.id;
+      option.textContent = output.label;
+      elements.audioOutputSelect.append(option);
+    }
+  }
+
+  elements.audioOutputSelect.value = audio.output;
+  elements.audioState.textContent = elements.audioOutputSelect.selectedOptions[0]?.textContent || audio.output;
+}
+
 function updateRadio(radio) {
   radioState = radio.state;
   selectedStationId = radio.station?.id || selectedStationId;
-  elements.radioName.textContent = radio.station?.name || getSelectedStationName() || "Select station";
+  const station = radio.station || getSelectedStation();
+  elements.radioName.textContent = station?.name || "Select station";
+  elements.radioFrequency.textContent = station?.frequency || "--.-";
   elements.radioStatus.textContent = radio.error || radio.label;
-  elements.radioToggle.textContent = radio.state === "playing" ? "Stop" : "Play";
+  elements.radioAction.textContent = radio.state === "playing" ? "Stop" : "Play";
   elements.radioToggle.classList.toggle("playing", radio.state === "playing");
 
   if (radio.station?.id) {
@@ -66,39 +100,51 @@ function updateRadio(radio) {
   }
 }
 
-function loadStations(stations) {
-  elements.stationList.replaceChildren();
+function updateSpotify(spotify) {
+  elements.spotifyStatus.textContent = spotify.available ? spotify.label : "Not set";
+  elements.spotifySource.classList.toggle("disabled", !spotify.available);
+}
 
-  for (const station of stations) {
-    const button = document.createElement("button");
-    button.className = "station-button";
-    button.type = "button";
-    button.dataset.stationId = station.id;
-    button.textContent = station.name;
-    button.addEventListener("click", () => {
-      setSelectedStation(station.id);
-      elements.radioName.textContent = station.name;
-    });
-    elements.stationList.append(button);
-  }
+function loadStations(nextStations) {
+  stations = nextStations;
 
-  if (stations.length > 0) {
+  if (stations.length > 0 && !selectedStationId) {
     setSelectedStation(stations[0].id);
-    elements.radioName.textContent = stations[0].name;
   }
 }
 
 function setSelectedStation(stationId) {
   selectedStationId = stationId;
+  const station = getSelectedStation();
 
-  for (const button of elements.stationList.querySelectorAll(".station-button")) {
-    button.classList.toggle("selected", button.dataset.stationId === stationId);
+  if (station) {
+    elements.radioName.textContent = station.name;
+    elements.radioFrequency.textContent = station.frequency;
   }
 }
 
-function getSelectedStationName() {
-  const selected = elements.stationList.querySelector(".station-button.selected");
-  return selected?.textContent || "";
+function getSelectedStation() {
+  return stations.find((station) => station.id === selectedStationId) || stations[0] || null;
+}
+
+async function selectStationOffset(offset) {
+  if (stations.length === 0) {
+    return;
+  }
+
+  const currentIndex = Math.max(0, stations.findIndex((station) => station.id === selectedStationId));
+  const nextIndex = (currentIndex + offset + stations.length) % stations.length;
+  setSelectedStation(stations[nextIndex].id);
+
+  if (radioState === "playing") {
+    try {
+      const radio = await playSelectedStation();
+      updateRadio(radio);
+    } catch (error) {
+      elements.radioStatus.textContent = "Radio error";
+      console.error(error);
+    }
+  }
 }
 
 async function toggleRadio() {
@@ -107,7 +153,7 @@ async function toggleRadio() {
   try {
     const radio = radioState === "playing"
       ? await postJson("/api/radio/stop")
-      : await postJson("/api/radio/play", { station_id: selectedStationId });
+      : await playSelectedStation();
 
     updateRadio(radio);
   } catch (error) {
@@ -116,6 +162,10 @@ async function toggleRadio() {
   } finally {
     elements.radioToggle.disabled = false;
   }
+}
+
+async function playSelectedStation() {
+  return postJson("/api/radio/play", { station_id: selectedStationId });
 }
 
 function updateVolumeLabel(volume) {
@@ -132,6 +182,25 @@ async function setVolume(volume) {
   }
 }
 
+async function setAudioOutput(output) {
+  elements.audioOutputSelect.disabled = true;
+
+  try {
+    const system = await postJson("/api/system/audio-output", { output });
+    updateSystem(system);
+
+    if (radioState === "playing") {
+      const radio = await postJson("/api/radio/play", { station_id: selectedStationId });
+      updateRadio(radio);
+    }
+  } catch (error) {
+    elements.systemStatus.textContent = "Audio error";
+    console.error(error);
+  } finally {
+    elements.audioOutputSelect.disabled = false;
+  }
+}
+
 function queueVolumeUpdate() {
   const volume = Number(elements.volumeControl.value);
   updateVolumeLabel(volume);
@@ -141,13 +210,15 @@ function queueVolumeUpdate() {
 
 async function refresh() {
   try {
-    const [system, radio] = await Promise.all([
+    const [system, radio, spotify] = await Promise.all([
       getJson("/api/system/status"),
       getJson("/api/radio/status"),
+      getJson("/api/spotify/status"),
     ]);
 
     updateSystem(system);
     updateRadio(radio);
+    updateSpotify(spotify);
   } catch (error) {
     elements.systemStatus.textContent = "API unavailable";
     console.error(error);
@@ -156,14 +227,23 @@ async function refresh() {
 
 async function init() {
   try {
-    const data = await getJson("/api/radio/stations");
-    loadStations(data.stations);
+    const [radioData, spotify] = await Promise.all([
+      getJson("/api/radio/stations"),
+      getJson("/api/spotify/status"),
+    ]);
+    loadStations(radioData.stations);
+    updateSpotify(spotify);
   } catch (error) {
-    elements.radioStatus.textContent = "No stations";
+    elements.radioStatus.textContent = "Source error";
     console.error(error);
   }
 
   elements.radioToggle.addEventListener("click", toggleRadio);
+  elements.radioPrev.addEventListener("click", () => selectStationOffset(-1));
+  elements.radioNext.addEventListener("click", () => selectStationOffset(1));
+  elements.audioOutputSelect.addEventListener("change", () => {
+    setAudioOutput(elements.audioOutputSelect.value);
+  });
   elements.volumeControl.addEventListener("pointerdown", () => {
     isVolumeDragging = true;
   });
