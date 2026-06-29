@@ -20,15 +20,36 @@ SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
 SERVICE_TEMPLATE="$PROJECT_DIR/deploy/musicstreamer.service"
 SERVICE_USER="${MUSICSTREAMER_SERVICE_USER:-$USER}"
 SERVICE_BUILD_FILE="/tmp/$SERVICE_NAME.service"
+MISSING_PACKAGES=()
 
 if ! command -v sudo >/dev/null 2>&1; then
   echo "sudo is required to install system packages and the systemd service."
   exit 1
 fi
 
-echo "Installing system packages"
-sudo apt-get update
-sudo apt-get install -y python3 python3-venv python3-pip git
+if ! command -v python3 >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("python3")
+fi
+
+if ! python3 -m venv --help >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("python3-venv")
+fi
+
+if ! python3 -m pip --version >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("python3-pip")
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("git")
+fi
+
+if [ "${#MISSING_PACKAGES[@]}" -gt 0 ]; then
+  echo "Installing missing system packages: ${MISSING_PACKAGES[*]}"
+  sudo apt-get update
+  sudo apt-get install -y --no-upgrade "${MISSING_PACKAGES[@]}"
+else
+  echo "System packages already available; skipping apt install."
+fi
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "Creating env/.env from template"
