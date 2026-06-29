@@ -1,0 +1,17 @@
+[Unit]
+Description=MusicStreamer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__PROJECT_DIR__
+EnvironmentFile=-__PROJECT_DIR__/env/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=__PROJECT_DIR__/scripts/start.sh
+Restart=always
+RestartSec=3
+User=__SERVICE_USER__
+
+[Install]
+WantedBy=multi-user.target

@@ -15,6 +15,7 @@ fi
 
 HOST="${MUSICSTREAMER_HOST:-0.0.0.0}"
 PORT="${MUSICSTREAMER_PORT:-8080}"
+SERVICE_NAME="${MUSICSTREAMER_SERVICE_NAME:-musicstreamer}"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "python3 is required but was not found."
@@ -32,9 +33,11 @@ source "$VENV_DIR/bin/activate"
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
-export FLASK_ENV="${FLASK_ENV:-development}"
+export FLASK_ENV="${FLASK_ENV:-production}"
+export FLASK_DEBUG="${FLASK_DEBUG:-0}"
 export MUSICSTREAMER_HOST="$HOST"
 export MUSICSTREAMER_PORT="$PORT"
 
 echo "Starting MusicStreamer on http://$HOST:$PORT"
-python src/app.py
+echo "Service name: $SERVICE_NAME"
+exec python src/app.py
