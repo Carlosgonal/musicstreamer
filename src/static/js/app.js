@@ -7,11 +7,14 @@ const elements = {
   stationList: document.querySelector("#station-list"),
   radioToggle: document.querySelector("#radio-toggle"),
   networkState: document.querySelector("#network-state"),
+  volumeControl: document.querySelector("#volume-control"),
   volumeState: document.querySelector("#volume-state"),
 };
 
 let radioState = "standby";
 let selectedStationId = "";
+let volumeDebounceId = null;
+let isVolumeDragging = false;
 
 async function getJson(url) {
   const response = await fetch(url, { cache: "no-store" });
@@ -44,6 +47,10 @@ function updateSystem(system) {
   elements.systemStatus.textContent = system.status;
   elements.networkState.textContent = system.network;
   elements.volumeState.textContent = `Vol ${system.volume}%`;
+
+  if (!isVolumeDragging) {
+    elements.volumeControl.value = system.volume;
+  }
 }
 
 function updateRadio(radio) {
@@ -111,6 +118,27 @@ async function toggleRadio() {
   }
 }
 
+function updateVolumeLabel(volume) {
+  elements.volumeState.textContent = `Vol ${volume}%`;
+}
+
+async function setVolume(volume) {
+  try {
+    const system = await postJson("/api/system/volume", { volume });
+    updateSystem(system);
+  } catch (error) {
+    elements.systemStatus.textContent = "Volume error";
+    console.error(error);
+  }
+}
+
+function queueVolumeUpdate() {
+  const volume = Number(elements.volumeControl.value);
+  updateVolumeLabel(volume);
+  window.clearTimeout(volumeDebounceId);
+  volumeDebounceId = window.setTimeout(() => setVolume(volume), 180);
+}
+
 async function refresh() {
   try {
     const [system, radio] = await Promise.all([
@@ -136,6 +164,18 @@ async function init() {
   }
 
   elements.radioToggle.addEventListener("click", toggleRadio);
+  elements.volumeControl.addEventListener("pointerdown", () => {
+    isVolumeDragging = true;
+  });
+  elements.volumeControl.addEventListener("pointerup", () => {
+    isVolumeDragging = false;
+    queueVolumeUpdate();
+  });
+  elements.volumeControl.addEventListener("input", queueVolumeUpdate);
+  elements.volumeControl.addEventListener("change", () => {
+    isVolumeDragging = false;
+    queueVolumeUpdate();
+  });
   refresh();
   setInterval(refresh, 5000);
 }

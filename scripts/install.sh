@@ -44,6 +44,10 @@ collect_missing_packages() {
   if ! command -v mpv >/dev/null 2>&1; then
     MISSING_PACKAGES+=("mpv")
   fi
+
+  if ! command -v amixer >/dev/null 2>&1; then
+    MISSING_PACKAGES+=("alsa-utils")
+  fi
 }
 
 if ! command -v sudo >/dev/null 2>&1; then

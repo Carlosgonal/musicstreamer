@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import threading
@@ -25,6 +26,22 @@ _process: subprocess.Popen | None = None
 _current_station: dict | None = None
 _last_error: str | None = None
 _lock = threading.Lock()
+
+
+def _build_mpv_command(player: str, url: str) -> list[str]:
+    command = [
+        player,
+        "--no-video",
+        "--really-quiet",
+        "--force-window=no",
+    ]
+    audio_device = os.getenv("MUSICSTREAMER_MPV_AUDIO_DEVICE", "").strip()
+
+    if audio_device:
+        command.append(f"--audio-device={audio_device}")
+
+    command.append(url)
+    return command
 
 
 def _find_station(station_id: str | None) -> dict:
@@ -77,13 +94,7 @@ def play_station(station_id: str | None = None) -> dict:
         _current_station = station
         _last_error = None
         _process = subprocess.Popen(
-            [
-                player,
-                "--no-video",
-                "--really-quiet",
-                "--force-window=no",
-                station["url"],
-            ],
+            _build_mpv_command(player, station["url"]),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
