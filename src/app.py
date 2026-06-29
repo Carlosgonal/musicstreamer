@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 from flask import Flask, send_from_directory
 
@@ -29,4 +30,7 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    host = os.getenv("MUSICSTREAMER_HOST", "0.0.0.0")
+    port = int(os.getenv("MUSICSTREAMER_PORT", "8080"))
+
+    app.run(host=host, port=port, debug=True)
