@@ -44,8 +44,15 @@ def _is_process_running() -> bool:
     return _process is not None and _process.poll() is None
 
 
+def _path_exists_safe(path: Path) -> bool:
+    try:
+        return path.exists()
+    except PermissionError:
+        return False
+
+
 def _raspotify_installed() -> bool:
-    return RASPOTIFY_CONFIG_FILE.exists() or any(path.exists() for path in RASPOTIFY_SERVICE_FILES)
+    return _path_exists_safe(RASPOTIFY_CONFIG_FILE) or any(_path_exists_safe(path) for path in RASPOTIFY_SERVICE_FILES)
 
 
 def _run_systemctl(*args: str) -> subprocess.CompletedProcess[str]:
