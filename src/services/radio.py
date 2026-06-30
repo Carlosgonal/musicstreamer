@@ -1,7 +1,9 @@
 from copy import deepcopy
 import json
+import shutil
+import subprocess
+import threading
 from pathlib import Path
-from threading import Lock
 
 from services.player import set_state
 
@@ -17,8 +19,11 @@ DEFAULT_RADIO_STATUS = {
     "current_station_id": None,
 }
 
-_lock = Lock()
+_lock = threading.Lock()
 _status = deepcopy(DEFAULT_RADIO_STATUS)
+_process: subprocess.Popen | None = None
+_backend: str | None = None
+_last_error: str | None = None
 
 
 def _read_config() -> dict:
@@ -78,7 +83,67 @@ def _snapshot_locked() -> dict:
         "stations": deepcopy(_status["stations"]),
         "state": _status["state"],
         "current_station": deepcopy(current_station) if current_station else None,
+        "backend": _backend,
+        "error": _last_error,
     }
+
+
+def _available_backends() -> list[tuple[str, list[str]]]:
+    return [
+        ("mpv", ["mpv", "--no-video", "--really-quiet"]),
+        ("cvlc", ["cvlc", "--intf", "dummy", "--quiet", "--play-and-exit"]),
+        ("vlc", ["vlc", "--intf", "dummy", "--quiet", "--play-and-exit"]),
+        ("ffplay", ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"]),
+        ("mplayer", ["mplayer", "-really-quiet"]),
+    ]
+
+
+def _start_stream(url: str) -> tuple[str, subprocess.Popen]:
+    last_error: Exception | None = None
+
+    for backend_name, command in _available_backends():
+        executable = shutil.which(command[0])
+        if not executable:
+            continue
+
+        try:
+            process = subprocess.Popen(
+                [executable, *command[1:], url],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError as error:
+            last_error = error
+            continue
+
+        if process.poll() is None:
+            return backend_name, process
+
+        last_error = RuntimeError(f"{backend_name} exited with {process.returncode}")
+
+    if last_error is not None:
+        raise RuntimeError(str(last_error))
+
+    raise RuntimeError("No radio player found. Install mpv, cvlc, vlc, ffplay or mplayer.")
+
+
+def _stop_process_locked() -> None:
+    global _process, _backend
+
+    if _process is None:
+        return
+
+    if _process.poll() is None:
+        _process.terminate()
+        try:
+            _process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            _process.kill()
+            _process.wait(timeout=2)
+
+    _process = None
+    _backend = None
 
 
 def get_radio_status() -> dict:
@@ -128,20 +193,50 @@ def delete_station(station_id: str) -> dict:
 
 
 def play_station(station_id: str | None = None) -> dict:
+    global _last_error, _backend, _process
+
     with _lock:
         if station_id:
             _status["current_station_id"] = station_id
 
         current_station = _current_station_locked()
-        _status["state"] = "playing" if current_station else "idle"
+        if current_station is None:
+            _status["state"] = "idle"
+            _last_error = "No radio station selected"
+            _write_config(_status)
+            set_state(source="radio", state="idle", artist=None, title="Radio Ready", album=None, artwork_url=None)
+            return _snapshot_locked()
+
+        _stop_process_locked()
+
+        try:
+            backend_name, process = _start_stream(str(current_station["url"]))
+        except RuntimeError as error:
+            _status["state"] = "idle"
+            _last_error = str(error)
+            _write_config(_status)
+            set_state(
+                source="radio",
+                state="idle",
+                artist=None,
+                title="Radio Ready",
+                album=None,
+                artwork_url=None,
+            )
+            raise
+
+        _process = process
+        _backend = backend_name
+        _status["state"] = "playing"
+        _last_error = None
         _write_config(_status)
 
     set_state(
         source="radio",
-        state="playing" if current_station else "idle",
-        artist=None,
+        state="playing",
+        artist=current_station.get("frequency") or current_station.get("url"),
         title=_station_title(current_station),
-        album="Internet Radio" if current_station else None,
+        album="Internet Radio",
         artwork_url=None,
     )
 
@@ -149,8 +244,12 @@ def play_station(station_id: str | None = None) -> dict:
 
 
 def stop_radio() -> dict:
+    global _last_error
+
     with _lock:
+        _stop_process_locked()
         _status["state"] = "idle"
+        _last_error = None
         _write_config(_status)
 
     set_state(

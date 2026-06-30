@@ -36,7 +36,10 @@ def remove_station(station_id: str):
 @radio_api.post("/play")
 def play():
     payload = request.get_json(silent=True) or {}
-    return jsonify(play_station(payload.get("station_id")))
+    try:
+        return jsonify(play_station(payload.get("station_id")))
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 503
 
 
 @radio_api.post("/stop")

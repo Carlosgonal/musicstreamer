@@ -97,6 +97,26 @@
 
         <div id="stations-list" class="stations-list" aria-live="polite"></div>
       </section>
+
+      <section class="panel logs-panel">
+        <div class="panel-head">
+          <div>
+            <p class="section-label">Logs</p>
+            <h2>Recent events</h2>
+          </div>
+          <span id="logs-count" class="pill">0</span>
+        </div>
+
+        <div class="logs-toolbar">
+          <label class="field logs-search">
+            <span>Filter</span>
+            <input id="logs-query" type="text" autocomplete="off" placeholder="spotify, radio, error...">
+          </label>
+          <button id="logs-refresh" class="button" type="button">Refresh</button>
+        </div>
+
+        <pre id="logs-output" class="logs-output" aria-live="polite">Loading logs...</pre>
+      </section>
     </section>
 
     <footer id="admin-message" class="message" aria-live="polite"></footer>

@@ -1,9 +1,10 @@
 from flask import Blueprint, jsonify, request
 
 from services.player import get_player_status
-from services.radio import get_radio_status, play_station
+from services.radio import get_radio_status, play_station, stop_radio
 from services.spotify import get_spotify_status
 from services.player import set_state
+from services.spotify import stop_spotify
 
 
 player_api = Blueprint("player_api", __name__)
@@ -21,6 +22,7 @@ def source():
     station_id = str(payload.get("station_id", "")).strip() or None
 
     if source == "spotify":
+        stop_radio()
         spotify_status = get_spotify_status()
         spotify_player = spotify_status.get("player") or {}
         set_state(
@@ -38,7 +40,11 @@ def source():
         })
 
     if source == "radio":
-        radio_status = play_station(station_id)
+        stop_spotify()
+        try:
+            radio_status = play_station(station_id)
+        except RuntimeError as error:
+            return jsonify({"error": str(error)}), 503
         current_station = radio_status.get("current_station") or {}
         set_state(
             source="radio",

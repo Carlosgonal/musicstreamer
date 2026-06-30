@@ -31,6 +31,6 @@
       "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/CADENASER.mp3"
     }
   ],
-  "state": "playing",
+  "state": "idle",
   "current_station_id": null
 }

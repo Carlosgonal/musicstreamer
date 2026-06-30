@@ -20,6 +20,10 @@
   gap: 14px;
 }
 
+.logs-panel {
+  grid-column: 1 / -1;
+}
+
 .panel {
   min-width: 0;
   padding: 14px;
@@ -126,6 +130,33 @@
   margin-bottom: 12px;
 }
 
+.logs-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.logs-search {
+  gap: 4px;
+}
+
+.logs-output {
+  margin: 0;
+  min-height: 220px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: 12px/1.4 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .stations-list {
   display: grid;
   gap: 8px;
@@ -172,6 +203,14 @@
 
 @media (max-width: 760px) {
   .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .logs-panel {
+    grid-column: auto;
+  }
+
+  .logs-toolbar {
     grid-template-columns: 1fr;
   }
 }

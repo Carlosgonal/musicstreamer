@@ -15,10 +15,16 @@ const elements = {
   stationUrl: document.querySelector("#station-url"),
   stationFrequency: document.querySelector("#station-frequency"),
   stationsList: document.querySelector("#stations-list"),
+  logsCount: document.querySelector("#logs-count"),
+  logsQuery: document.querySelector("#logs-query"),
+  logsRefresh: document.querySelector("#logs-refresh"),
+  logsOutput: document.querySelector("#logs-output"),
   adminMessage: document.querySelector("#admin-message"),
 };
 
 let stations = [];
+let logTimer = null;
+let logRefreshTimer = null;
 
 async function getJson(url) {
   const response = await fetch(url, { cache: "no-store" });
@@ -49,6 +55,23 @@ async function deleteJson(url) {
     throw new Error(body || `${url} returned ${response.status}`);
   }
   return body ? JSON.parse(body) : {};
+}
+
+async function refreshLogs() {
+  const query = elements.logsQuery.value.trim();
+  const url = query
+    ? `/api/logs/recent?limit=200&query=${encodeURIComponent(query)}`
+    : "/api/logs/recent?limit=200";
+
+  try {
+    const payload = await getJson(url);
+    const lines = Array.isArray(payload.lines) ? payload.lines : [];
+    elements.logsCount.textContent = `${payload.count ?? lines.length}`;
+    elements.logsOutput.textContent = lines.length ? lines.join("\n") : "No logs yet.";
+  } catch (error) {
+    elements.logsCount.textContent = "0";
+    elements.logsOutput.textContent = `Unable to load logs: ${error.message}`;
+  }
 }
 
 function setMessage(text, isError = false) {
@@ -151,6 +174,8 @@ async function refreshAll() {
   } catch (error) {
     setMessage(`Unable to load admin data: ${error.message}`, true);
   }
+
+  await refreshLogs();
 }
 
 elements.spotifyForm.addEventListener("submit", async (event) => {
@@ -196,4 +221,25 @@ elements.radioForm.addEventListener("submit", async (event) => {
   }
 });
 
+elements.logsRefresh.addEventListener("click", () => {
+  refreshLogs();
+});
+
+elements.logsQuery.addEventListener("input", () => {
+  window.clearTimeout(logTimer);
+  logTimer = window.setTimeout(() => {
+    refreshLogs();
+  }, 250);
+});
+
 refreshAll();
+logRefreshTimer = window.setInterval(refreshLogs, 5000);
+
+window.addEventListener("beforeunload", () => {
+  if (logRefreshTimer !== null) {
+    window.clearInterval(logRefreshTimer);
+  }
+  if (logTimer !== null) {
+    window.clearTimeout(logTimer);
+  }
+});
