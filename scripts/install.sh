@@ -5,6 +5,9 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="$PROJECT_DIR/.venv"
 ENV_FILE="$PROJECT_DIR/env/.env"
 ENV_TEMPLATE="$PROJECT_DIR/env/template.env"
+RADIO_TEMPLATE="$PROJECT_DIR/deploy/radio.json.template"
+RADIO_CONFIG_DIR="$PROJECT_DIR/var/config"
+RADIO_CONFIG_FILE="$RADIO_CONFIG_DIR/radio.json"
 SERVICE_NAME="${MUSICSTREAMER_SERVICE_NAME:-musicstreamer}"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
 SERVICE_TEMPLATE="$PROJECT_DIR/deploy/musicstreamer.service"
@@ -14,10 +17,16 @@ SERVICE_BUILD_FILE="/tmp/$SERVICE_NAME.service"
 cd "$PROJECT_DIR"
 
 mkdir -p "$PROJECT_DIR/env"
+mkdir -p "$RADIO_CONFIG_DIR"
 
 if [ ! -f "$ENV_FILE" ] && [ -f "$ENV_TEMPLATE" ]; then
   echo "Creating env/.env from template"
   cp "$ENV_TEMPLATE" "$ENV_FILE"
+fi
+
+if [ ! -f "$RADIO_CONFIG_FILE" ] && [ -f "$RADIO_TEMPLATE" ]; then
+  echo "Creating var/config/radio.json from template"
+  cp "$RADIO_TEMPLATE" "$RADIO_CONFIG_FILE"
 fi
 
 if [ ! -d "$VENV_DIR" ]; then

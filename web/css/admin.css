@@ -1,7 +1,19 @@
+html,
+body {
+  height: auto;
+  min-height: 100%;
+}
+
+body {
+  display: block;
+  place-items: unset;
+  overflow: auto;
+}
+
 .admin-shell {
-  width: min(860px, 100vw);
+  width: min(860px, calc(100vw - 32px));
   min-height: 100vh;
-  padding: 16px;
+  padding: 16px 0 24px;
   display: grid;
   gap: 14px;
   margin: 0 auto;
