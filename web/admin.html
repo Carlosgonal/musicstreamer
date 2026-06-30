@@ -102,6 +102,26 @@
         <div id="stations-list" class="stations-list" aria-live="polite"></div>
       </section>
 
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="section-label">System</p>
+            <h2>Audio output</h2>
+          </div>
+          <span id="audio-status" class="pill">loading</span>
+        </div>
+
+        <form id="audio-form" class="form">
+          <label class="field">
+            <span>Output</span>
+            <select id="audio-output"></select>
+          </label>
+          <div class="actions">
+            <button class="button primary" type="submit">Save audio</button>
+          </div>
+        </form>
+      </section>
+
       <section class="panel logs-panel">
         <div class="panel-head">
           <div>

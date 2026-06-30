@@ -382,6 +382,7 @@ def _current_playback() -> dict | None:
     item = data.get("item") or {}
     album = item.get("album") or {}
     images = album.get("images") or []
+    device = data.get("device") or {}
 
     return {
         "is_playing": bool(data.get("is_playing")),
@@ -391,6 +392,12 @@ def _current_playback() -> dict | None:
         "artist": ", ".join(artist.get("name", "") for artist in item.get("artists", []) if artist.get("name")),
         "album": album.get("name") or "",
         "image": images[0]["url"] if images else "",
+        "device": {
+            "id": device.get("id"),
+            "name": device.get("name"),
+            "volume_percent": device.get("volume_percent"),
+            "is_active": device.get("is_active"),
+        },
     }
 
 
@@ -566,6 +573,36 @@ def control_playback(action: str) -> dict:
     return get_spotify_status()
 
 
+def pause_spotify() -> dict:
+    if not is_authenticated():
+        return get_spotify_status()
+
+    try:
+        return control_playback("pause")
+    except RuntimeError:
+        return get_spotify_status()
+
+
+def set_spotify_volume(volume: int) -> dict:
+    global _last_error
+
+    if not is_authenticated():
+        return get_spotify_status()
+
+    clamped_volume = max(0, min(100, int(volume)))
+
+    try:
+        response = _spotify_request("PUT", f"/me/player/volume?volume_percent={clamped_volume}")
+    except requests.RequestException as error:
+        _last_error = str(error)
+        return get_spotify_status()
+
+    if response is not None and response.status_code not in {200, 202, 204}:
+        _last_error = f"Spotify volume returned {response.status_code}"
+
+    return get_spotify_status()
+
+
 def _current_playback_safe() -> dict | None:
     global _last_error
 
@@ -631,6 +668,7 @@ def get_spotify_status() -> dict:
         "label": label,
         "error": _last_error,
         "device_name": _setting("device_name", "SPOTIFY_DEVICE_NAME", "MusicStreamer"),
+        "audio_device": _librespot_device(),
         "authenticated": authenticated,
         "credentials_configured": _has_credentials(),
         "controls_available": ready_for_controls,

@@ -9,6 +9,9 @@ const elements = {
   spotifyRedirectUri: document.querySelector("#spotify-redirect-uri"),
   spotifyForm: document.querySelector("#spotify-form"),
   spotifyLogin: document.querySelector("#spotify-login"),
+  audioStatus: document.querySelector("#audio-status"),
+  audioForm: document.querySelector("#audio-form"),
+  audioOutput: document.querySelector("#audio-output"),
   radioCount: document.querySelector("#radio-count"),
   radioForm: document.querySelector("#radio-form"),
   stationName: document.querySelector("#station-name"),
@@ -91,6 +94,15 @@ function renderSpotify(settings) {
   elements.spotifyRedirectUri.value = settings.redirect_uri || "";
 }
 
+function renderAudio(audio) {
+  const outputs = Array.isArray(audio.outputs) ? audio.outputs : [];
+  elements.audioStatus.textContent = audio.output || "unknown";
+  elements.audioOutput.innerHTML = outputs
+    .map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.label)}</option>`)
+    .join("");
+  elements.audioOutput.value = audio.output || "jack";
+}
+
 function renderStationsList() {
   elements.radioCount.textContent = `${stations.length}`;
 
@@ -162,6 +174,11 @@ async function refreshSpotify() {
   renderSpotify(settings);
 }
 
+async function refreshAudio() {
+  const audio = await getJson("/api/system/audio-output");
+  renderAudio(audio);
+}
+
 async function refreshStations() {
   const payload = await getJson("/api/radio/stations");
   stations = Array.isArray(payload.stations) ? payload.stations : [];
@@ -170,7 +187,7 @@ async function refreshStations() {
 
 async function refreshAll() {
   try {
-    await Promise.all([refreshSpotify(), refreshStations()]);
+    await Promise.all([refreshSpotify(), refreshAudio(), refreshStations()]);
     setMessage("Configuration loaded.");
   } catch (error) {
     setMessage(`Unable to load admin data: ${error.message}`, true);
@@ -201,6 +218,20 @@ elements.spotifyForm.addEventListener("submit", async (event) => {
 
 elements.spotifyLogin.addEventListener("click", () => {
   window.location.href = "/api/spotify/login";
+});
+
+elements.audioForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  try {
+    const audio = await postJson("/api/system/audio-output", {
+      output: elements.audioOutput.value,
+    });
+    renderAudio(audio);
+    setMessage("Audio settings saved.");
+  } catch (error) {
+    setMessage(`Could not save audio: ${error.message}`, true);
+  }
 });
 
 elements.radioForm.addEventListener("submit", async (event) => {

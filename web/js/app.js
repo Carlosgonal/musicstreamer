@@ -14,7 +14,6 @@ const elements = {
   volume: document.querySelector("#volume"),
   volumeSlider: document.querySelector("#volume-slider"),
   radioStation: document.querySelector("#radio-station"),
-  audioOutput: document.querySelector("#audio-output"),
   sourceSpotify: document.querySelector("#source-spotify"),
   sourceRadio: document.querySelector("#source-radio"),
 };
@@ -25,7 +24,6 @@ let appState = {
   player: null,
   spotify: null,
   radio: null,
-  audio: null,
 };
 
 async function getJson(url) {
@@ -119,21 +117,10 @@ function renderProgress(progressMs, durationMs, isLive = false) {
   elements.progressFill.style.width = `${percent}%`;
 }
 
-function renderSystem(system, audio) {
+function renderSystem(system) {
   const service = system?.service || "musicstreamer";
   const status = system?.status || "running";
   elements.systemStatus.textContent = `${service} ${status}`;
-
-  const outputs = audio?.outputs || system?.audio?.outputs || [];
-  const currentOutput = audio?.output || system?.audio?.output || "jack";
-
-  if (elements.audioOutput.options.length !== outputs.length) {
-    elements.audioOutput.innerHTML = outputs
-      .map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.label)}</option>`)
-      .join("");
-  }
-
-  elements.audioOutput.value = currentOutput;
 
   const volume = Number(system?.volume ?? appState.player?.volume ?? 50);
   elements.volume.textContent = `${volume}%`;
@@ -224,22 +211,20 @@ function renderPlayer(player, spotify, radio) {
 }
 
 async function refresh() {
-  const [playerResult, systemResult, spotifyResult, radioResult, audioResult] = await Promise.allSettled([
+  const [playerResult, systemResult, spotifyResult, radioResult] = await Promise.allSettled([
     getJson("/api/player"),
     getJson("/api/system"),
     getJson("/api/spotify/status"),
     getJson("/api/radio"),
-    getJson("/api/system/audio-output"),
   ]);
 
   const player = playerResult.status === "fulfilled" ? playerResult.value : null;
   const system = systemResult.status === "fulfilled" ? systemResult.value : null;
   const spotify = spotifyResult.status === "fulfilled" ? spotifyResult.value : null;
   const radio = radioResult.status === "fulfilled" ? radioResult.value : null;
-  const audio = audioResult.status === "fulfilled" ? audioResult.value : null;
 
-  if (system || audio) {
-    renderSystem(system, audio);
+  if (system) {
+    renderSystem(system);
   }
 
   if (radio) {
@@ -316,14 +301,6 @@ elements.playPause.addEventListener("click", () => {
   togglePlayback().catch((error) => {
     elements.systemStatus.textContent = error.message;
   });
-});
-
-elements.audioOutput.addEventListener("change", () => {
-  postJson("/api/system/audio-output", { output: elements.audioOutput.value })
-    .then(() => refresh())
-    .catch((error) => {
-      elements.systemStatus.textContent = error.message;
-    });
 });
 
 elements.volumeSlider.addEventListener("input", () => {

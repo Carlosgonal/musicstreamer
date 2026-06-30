@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from services.system import get_audio_status, get_system_status, get_volume, set_audio_output, set_volume
+from services.spotify import set_spotify_volume
 
 
 system_api = Blueprint("system_api", __name__)
@@ -35,4 +36,13 @@ def volume_update():
         volume = int(payload.get("volume", 50))
     except (TypeError, ValueError):
         return jsonify({"error": "invalid volume"}), 400
-    return jsonify({"volume": set_volume(volume)})
+
+    system_volume = set_volume(volume)
+    spotify_status = set_spotify_volume(system_volume)
+    return jsonify({
+        "volume": system_volume,
+        "spotify": {
+            "state": spotify_status.get("state"),
+            "error": spotify_status.get("error"),
+        },
+    })
