@@ -9,6 +9,7 @@ const elements = {
   spotifyRedirectUri: document.querySelector("#spotify-redirect-uri"),
   spotifyForm: document.querySelector("#spotify-form"),
   spotifyLogin: document.querySelector("#spotify-login"),
+  spotifyRuntime: document.querySelector("#spotify-runtime"),
   audioStatus: document.querySelector("#audio-status"),
   audioForm: document.querySelector("#audio-form"),
   audioOutput: document.querySelector("#audio-output"),
@@ -94,6 +95,38 @@ function renderSpotify(settings) {
   elements.spotifyRedirectUri.value = settings.redirect_uri || "";
 }
 
+function renderSpotifyRuntime(status) {
+  const raspotify = status.raspotify || {};
+  const devices = Array.isArray(status.devices) ? status.devices : [];
+  const deviceName = status.device_name || "MusicStreamer";
+  const deviceLabels = devices.map((device) => {
+    const active = device.is_active ? " active" : "";
+    return `${device.name || "Unnamed"}${active}`;
+  });
+
+  if (!raspotify.installed) {
+    elements.spotifyRuntime.textContent = "Raspotify is not installed. Run ./scripts/install.sh on the Raspberry Pi.";
+    return;
+  }
+
+  if (!raspotify.running) {
+    elements.spotifyRuntime.textContent = "Raspotify is installed but stopped. Check sudo systemctl status raspotify.";
+    return;
+  }
+
+  if (!status.authenticated) {
+    elements.spotifyRuntime.textContent = "Raspotify is running. Link the Spotify account to inspect Spotify Connect devices.";
+    return;
+  }
+
+  if (!devices.length) {
+    elements.spotifyRuntime.textContent = `Raspotify is running as "${deviceName}", but Spotify does not list it yet.`;
+    return;
+  }
+
+  elements.spotifyRuntime.textContent = `Raspotify running. Spotify devices: ${deviceLabels.join(", ")}.`;
+}
+
 function renderAudio(audio) {
   const outputs = Array.isArray(audio.outputs) ? audio.outputs : [];
   elements.audioStatus.textContent = audio.output || "unknown";
@@ -174,6 +207,15 @@ async function refreshSpotify() {
   renderSpotify(settings);
 }
 
+async function refreshSpotifyStatus() {
+  try {
+    const status = await getJson("/api/spotify/status");
+    renderSpotifyRuntime(status);
+  } catch (error) {
+    elements.spotifyRuntime.textContent = `Unable to load Spotify device status: ${error.message}`;
+  }
+}
+
 async function refreshAudio() {
   const audio = await getJson("/api/system/audio-output");
   renderAudio(audio);
@@ -193,6 +235,7 @@ async function refreshAll() {
     setMessage(`Unable to load admin data: ${error.message}`, true);
   }
 
+  await refreshSpotifyStatus();
   await refreshLogs();
 }
 
@@ -210,6 +253,7 @@ elements.spotifyForm.addEventListener("submit", async (event) => {
       redirect_uri: elements.spotifyRedirectUri.value.trim(),
     });
     renderSpotify(settings);
+    await refreshSpotifyStatus();
     setMessage("Spotify settings saved.");
   } catch (error) {
     setMessage(`Could not save Spotify: ${error.message}`, true);

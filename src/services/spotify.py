@@ -401,6 +401,37 @@ def _current_playback() -> dict | None:
     }
 
 
+def _available_devices() -> list[dict]:
+    global _last_error
+
+    if not is_authenticated():
+        return []
+
+    response = _spotify_request("GET", "/me/player/devices")
+
+    if response is None:
+        return []
+
+    if not response.ok:
+        _last_error = f"Spotify devices returned {response.status_code}"
+        return []
+
+    devices = response.json().get("devices") or []
+
+    return [
+        {
+            "id": device.get("id"),
+            "name": device.get("name"),
+            "type": device.get("type"),
+            "is_active": bool(device.get("is_active")),
+            "is_restricted": bool(device.get("is_restricted")),
+            "volume_percent": device.get("volume_percent"),
+        }
+        for device in devices
+        if isinstance(device, dict)
+    ]
+
+
 def _librespot_device() -> str:
     audio_device = get_audio_device()
 
@@ -669,6 +700,7 @@ def get_spotify_status() -> dict:
     authenticated = is_authenticated()
     ready_for_controls = _has_credentials() and authenticated
     playback = _current_playback_safe()
+    devices = _available_devices()
 
     if playback and playback["is_playing"]:
         state = "playing"
@@ -714,6 +746,11 @@ def get_spotify_status() -> dict:
         "error": _last_error,
         "device_name": _setting("device_name", "SPOTIFY_DEVICE_NAME", "MusicStreamer"),
         "audio_device": _librespot_device(),
+        "raspotify": {
+            "installed": raspotify_installed,
+            "running": _raspotify_running() if raspotify_installed else False,
+        },
+        "devices": devices,
         "authenticated": authenticated,
         "credentials_configured": _has_credentials(),
         "controls_available": ready_for_controls,
