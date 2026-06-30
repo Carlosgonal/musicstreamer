@@ -448,7 +448,7 @@ def _raspotify_config_content() -> str:
         'LIBRESPOT_BACKEND="alsa"',
         f'LIBRESPOT_DEVICE="{_librespot_device()}"',
         f'LIBRESPOT_BITRATE="{_setting("bitrate", "SPOTIFY_BITRATE", "320")}"',
-        'LIBRESPOT_VOLUME_CTRL="alsa"',
+        'LIBRESPOT_VOLUME_CTRL="log"',
         'LIBRESPOT_INITIAL_VOLUME="80"',
         'LIBRESPOT_DISABLE_AUDIO_CACHE="true"',
         "",

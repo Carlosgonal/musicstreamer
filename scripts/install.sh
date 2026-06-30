@@ -111,7 +111,7 @@ if command -v sudo >/dev/null 2>&1; then
       printf 'LIBRESPOT_BACKEND="alsa"\n'
       printf 'LIBRESPOT_DEVICE="%s"\n' "$SPOTIFY_AUDIO_DEVICE"
       printf 'LIBRESPOT_BITRATE="%s"\n' "${SPOTIFY_BITRATE:-320}"
-      printf 'LIBRESPOT_VOLUME_CTRL="alsa"\n'
+      printf 'LIBRESPOT_VOLUME_CTRL="log"\n'
       printf 'LIBRESPOT_INITIAL_VOLUME="%s"\n' "80"
       printf 'LIBRESPOT_DISABLE_AUDIO_CACHE="true"\n'
     } > "$RASPOTIFY_BUILD_FILE"
@@ -139,3 +139,4 @@ fi
 
 echo "Installation complete."
 echo "Start now with: sudo systemctl start $SERVICE_NAME"
+echo "and: sudo systemctl restart raspotify"
