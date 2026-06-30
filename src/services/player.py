@@ -16,6 +16,7 @@ DEFAULT_PLAYER_STATUS = {
 
 _lock = Lock()
 _status = deepcopy(DEFAULT_PLAYER_STATUS)
+_UNSET = object()
 
 
 def get_player_status() -> dict:
@@ -32,25 +33,25 @@ def set_volume(volume: int) -> dict:
 
 def set_state(
     *,
-    source: str | None = None,
-    state: str | None = None,
-    artist: str | None = None,
-    title: str | None = None,
-    album: str | None = None,
-    artwork_url: str | None = None,
+    source: str | None | object = _UNSET,
+    state: str | None | object = _UNSET,
+    artist: str | None | object = _UNSET,
+    title: str | None | object = _UNSET,
+    album: str | None | object = _UNSET,
+    artwork_url: str | None | object = _UNSET,
 ) -> dict:
     with _lock:
-        if source is not None:
+        if source is not _UNSET:
             _status["source"] = source
-        if state is not None:
+        if state is not _UNSET:
             _status["state"] = state
-        if artist is not None:
+        if artist is not _UNSET:
             _status["artist"] = artist
-        if title is not None:
+        if title is not _UNSET:
             _status["title"] = title
-        if album is not None:
+        if album is not _UNSET:
             _status["album"] = album
-        if artwork_url is not None:
+        if artwork_url is not _UNSET:
             _status["artwork_url"] = artwork_url
 
         return deepcopy(_status)

@@ -27,18 +27,33 @@
         <p id="state" class="state">idle</p>
         <h2 id="title" class="title">Spotify Ready</h2>
         <p id="artist" class="artist">Waiting for playback</p>
+        <p id="context" class="context">Album / station details</p>
       </div>
     </section>
 
-    <section class="stats" aria-label="Playback details">
+    <section class="controls" aria-label="Source controls">
+      <div class="control-block">
+        <span class="label">Source</span>
+        <div class="segmented" role="tablist" aria-label="Playback source">
+          <button id="source-spotify" class="segment" type="button" data-source="spotify">Spotify</button>
+          <button id="source-radio" class="segment" type="button" data-source="radio">Radio</button>
+        </div>
+      </div>
+      <label class="control-block">
+        <span class="label">Station</span>
+        <select id="radio-station" class="select"></select>
+      </label>
+    </section>
+
+    <section class="stats" aria-label="System details">
       <div class="stat">
         <span class="label">Volume</span>
         <strong id="volume" class="value">50%</strong>
       </div>
-      <div class="stat">
-        <span class="label">Album</span>
-        <strong id="album" class="value">--</strong>
-      </div>
+      <label class="stat">
+        <span class="label">Output</span>
+        <select id="audio-output" class="value select-inline"></select>
+      </label>
     </section>
   </main>
 
