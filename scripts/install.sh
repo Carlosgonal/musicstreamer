@@ -13,11 +13,44 @@ SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
 SERVICE_TEMPLATE="$PROJECT_DIR/deploy/musicstreamer.service"
 SERVICE_USER="${MUSICSTREAMER_SERVICE_USER:-$USER}"
 SERVICE_BUILD_FILE="/tmp/$SERVICE_NAME.service"
+MISSING_PACKAGES=()
 
 cd "$PROJECT_DIR"
 
 mkdir -p "$PROJECT_DIR/env"
 mkdir -p "$RADIO_CONFIG_DIR"
+
+if ! command -v python3 >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("python3")
+fi
+
+if ! python3 -m venv --help >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("python3-venv")
+fi
+
+if ! python3 -m pip --version >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("python3-pip")
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("git")
+fi
+
+if ! command -v mpv >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("mpv")
+fi
+
+if [ "${#MISSING_PACKAGES[@]}" -gt 0 ]; then
+  if command -v sudo >/dev/null 2>&1; then
+    echo "Installing missing system packages: ${MISSING_PACKAGES[*]}"
+    sudo apt-get update
+    sudo apt-get install -y --no-upgrade "${MISSING_PACKAGES[@]}"
+  else
+    echo "Missing system packages: ${MISSING_PACKAGES[*]}"
+    echo "sudo is required to install them."
+    exit 1
+  fi
+fi
 
 if [ ! -f "$ENV_FILE" ] && [ -f "$ENV_TEMPLATE" ]; then
   echo "Creating env/.env from template"

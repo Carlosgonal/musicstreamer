@@ -34,11 +34,11 @@ body {
 }
 
 .device {
-  width: min(480px, 100vw);
-  height: min(320px, 100vh);
+  width: 480px;
+  height: 320px;
   padding: 8px;
   display: grid;
-  grid-template-rows: 30px minmax(0, 1fr) 46px 48px;
+  grid-template-rows: 30px minmax(0, 1fr) 34px 40px;
   gap: 4px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   background:
@@ -198,7 +198,9 @@ h1 {
 
 .control-block {
   display: grid;
-  gap: 4px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -258,6 +260,30 @@ h1 {
   min-width: 0;
 }
 
+.volume-control,
+.output-control {
+  display: grid;
+  align-items: center;
+  gap: 6px;
+}
+
+.volume-control {
+  grid-template-columns: 44px minmax(0, 1fr) 38px;
+}
+
+.output-control {
+  grid-template-columns: 44px minmax(0, 1fr);
+}
+
+.volume-control .label,
+.output-control .label {
+  white-space: nowrap;
+}
+
+.output-control .select-inline {
+  width: 100%;
+}
+
 .value {
   color: var(--text);
   font-size: 12px;
@@ -268,20 +294,7 @@ h1 {
   white-space: nowrap;
 }
 
-.volume-control {
-  align-items: stretch;
-}
-
-.volume-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  flex: 1;
-}
-
 .volume-slider {
-  flex: 1;
   min-width: 0;
   accent-color: var(--accent);
 }
