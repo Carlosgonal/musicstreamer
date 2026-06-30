@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MusicStreamer</title>
-  <link rel="stylesheet" href="/web/css/app.css">
+  <link rel="stylesheet" href="/web/css/app.css?v=__ASSET_VERSION__">
 </head>
 <body>
   <main class="device" aria-label="MusicStreamer">
@@ -20,11 +20,11 @@
     </header>
 
     <section class="now-playing" aria-live="polite">
-      <div class="cover" aria-hidden="true">
-        <span id="source" class="source-badge">spotify</span>
-      </div>
       <div class="meta">
-        <p id="state" class="state">idle</p>
+        <div class="now-playing-head">
+          <span id="source" class="source-badge">spotify</span>
+          <p id="state" class="state">idle</p>
+        </div>
         <h2 id="title" class="title">Spotify Ready</h2>
         <p id="artist" class="artist">Waiting for playback</p>
         <p id="context" class="context">Album / station details</p>
@@ -57,6 +57,6 @@
     </section>
   </main>
 
-  <script src="/web/js/app.js" defer></script>
+  <script src="/web/js/app.js?v=__ASSET_VERSION__" defer></script>
 </body>
 </html>

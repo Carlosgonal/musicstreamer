@@ -1,0 +1,36 @@
+{
+  "stations": [
+    {
+      "id": "rne",
+      "name": "RNE",
+      "frequency": "88.2",
+      "url": "https://rtvelivestream.akamaized.net/rtvesec/rne/rne_r1_main.m3u8"
+    },
+    {
+      "id": "dial",
+      "name": "Cadena Dial",
+      "frequency": "91.7",
+      "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/CADENADIAL.mp3"
+    },
+    {
+      "id": "radio3",
+      "name": "Radio 3",
+      "frequency": "93.2",
+      "url": "https://rtvelivestream.akamaized.net/rtvesec/rne/rne_r3_main.m3u8"
+    },
+    {
+      "id": "los40",
+      "name": "LOS40",
+      "frequency": "93.9",
+      "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/LOS40.mp3"
+    },
+    {
+      "id": "ser",
+      "name": "Cadena SER",
+      "frequency": "105.4",
+      "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/CADENASER.mp3"
+    }
+  ],
+  "state": "playing",
+  "current_station_id": null
+}

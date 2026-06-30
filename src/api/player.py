@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request
 
 from services.player import get_player_status
-from services.radio import get_radio_status, play_station, stop_radio
-from services.spotify import get_spotify_status, start_spotify, stop_spotify
+from services.radio import get_radio_status, play_station
+from services.spotify import get_spotify_status
 from services.player import set_state
 
 
@@ -21,10 +21,16 @@ def source():
     station_id = str(payload.get("station_id", "")).strip() or None
 
     if source == "spotify":
-        stop_radio()
-        spotify_status = start_spotify()
-        if not spotify_status.get("player"):
-            set_state(source="spotify", state="idle", title="Spotify Ready", album=None, artist=None, artwork_url=None)
+        spotify_status = get_spotify_status()
+        spotify_player = spotify_status.get("player") or {}
+        set_state(
+            source="spotify",
+            state="playing" if spotify_player.get("is_playing") else "idle",
+            title=spotify_player.get("track") or "Spotify Ready",
+            album=spotify_player.get("album"),
+            artist=spotify_player.get("artist"),
+            artwork_url=spotify_player.get("image"),
+        )
         return jsonify({
             "player": get_player_status(),
             "spotify": spotify_status if spotify_status else get_spotify_status(),
@@ -32,8 +38,16 @@ def source():
         })
 
     if source == "radio":
-        stop_spotify()
         radio_status = play_station(station_id)
+        current_station = radio_status.get("current_station") or {}
+        set_state(
+            source="radio",
+            state="playing" if radio_status.get("state") == "playing" else "idle",
+            title=current_station.get("name") or "Radio Ready",
+            album="Internet Radio" if current_station else None,
+            artist=current_station.get("frequency") or current_station.get("url"),
+            artwork_url=None,
+        )
         return jsonify({
             "player": get_player_status(),
             "radio": radio_status,
