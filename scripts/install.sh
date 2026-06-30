@@ -38,6 +38,10 @@ if ! command -v git >/dev/null 2>&1; then
   MISSING_PACKAGES+=("git")
 fi
 
+if ! command -v curl >/dev/null 2>&1; then
+  MISSING_PACKAGES+=("curl")
+fi
+
 if ! command -v mpv >/dev/null 2>&1; then
   MISSING_PACKAGES+=("mpv")
 fi
@@ -85,6 +89,12 @@ if ! python -m pip install -r requirements.txt; then
 fi
 
 if command -v sudo >/dev/null 2>&1; then
+  if command -v systemctl >/dev/null 2>&1 && ! systemctl list-unit-files raspotify.service >/dev/null 2>&1 && [ ! -f "$RASPOTIFY_CONFIG_FILE" ]; then
+    echo "Installing Raspotify"
+    curl -sL https://dtcooper.github.io/raspotify/install.sh | sudo sh
+    sudo systemctl daemon-reload
+  fi
+
   if command -v systemctl >/dev/null 2>&1 && { systemctl list-unit-files raspotify.service >/dev/null 2>&1 || [ -f "$RASPOTIFY_CONFIG_FILE" ]; }; then
     AUDIO_OUTPUT="${MUSICSTREAMER_AUDIO_OUTPUT:-jack}"
     if [ "$AUDIO_OUTPUT" = "hdmi" ]; then
@@ -108,6 +118,7 @@ if command -v sudo >/dev/null 2>&1; then
     sudo install -m 0644 "$RASPOTIFY_BUILD_FILE" "$RASPOTIFY_CONFIG_FILE"
     rm -f "$RASPOTIFY_BUILD_FILE"
     sudo systemctl daemon-reload
+    sudo systemctl enable --now raspotify || true
     sudo systemctl restart raspotify || true
   fi
 
