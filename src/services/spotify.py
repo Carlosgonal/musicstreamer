@@ -410,6 +410,28 @@ def _librespot_device() -> str:
     return audio_device
 
 
+def _raspotify_config_content() -> str:
+    return "\n".join([
+        "# Managed by MusicStreamer",
+        f'LIBRESPOT_NAME="{_setting("device_name", "SPOTIFY_DEVICE_NAME", "MusicStreamer")}"',
+        'LIBRESPOT_BACKEND="alsa"',
+        f'LIBRESPOT_DEVICE="{_librespot_device()}"',
+        f'LIBRESPOT_BITRATE="{_setting("bitrate", "SPOTIFY_BITRATE", "320")}"',
+        'LIBRESPOT_VOLUME_CTRL="alsa"',
+        'LIBRESPOT_INITIAL_VOLUME="80"',
+        'LIBRESPOT_DISABLE_AUDIO_CACHE="true"',
+        "",
+    ])
+
+
+def _sync_raspotify_config() -> None:
+    if not _raspotify_installed():
+        return
+
+    RASPOTIFY_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    RASPOTIFY_CONFIG_FILE.write_text(_raspotify_config_content(), encoding="utf-8")
+
+
 def _build_librespot_command(player: str) -> list[str]:
     command = [
         player,
@@ -470,8 +492,14 @@ def start_spotify() -> dict:
 
     if _raspotify_installed():
         try:
+            _sync_raspotify_config()
+        except OSError as error:
+            _last_error = str(error)
+
+        try:
             _run_systemctl("start", "raspotify")
-            _last_error = None
+            if _last_error is None or "raspotify" in _last_error.lower():
+                _last_error = None
         except (RuntimeError, subprocess.CalledProcessError) as error:
             _last_error = str(error)
 
