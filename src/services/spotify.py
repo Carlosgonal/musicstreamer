@@ -62,7 +62,7 @@ def _run_systemctl(*args: str) -> subprocess.CompletedProcess[str]:
         raise RuntimeError("systemctl is not installed")
 
     return subprocess.run(
-        [systemctl, *args],
+        [systemctl, "--no-ask-password", *args],
         check=True,
         capture_output=True,
         text=True,

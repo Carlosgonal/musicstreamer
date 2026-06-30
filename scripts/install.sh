@@ -5,6 +5,11 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="$PROJECT_DIR/.venv"
 ENV_FILE="$PROJECT_DIR/env/.env"
 ENV_TEMPLATE="$PROJECT_DIR/env/template.env"
+SERVICE_NAME="${MUSICSTREAMER_SERVICE_NAME:-musicstreamer}"
+SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
+SERVICE_TEMPLATE="$PROJECT_DIR/deploy/musicstreamer.service"
+SERVICE_USER="${MUSICSTREAMER_SERVICE_USER:-$USER}"
+SERVICE_BUILD_FILE="/tmp/$SERVICE_NAME.service"
 
 cd "$PROJECT_DIR"
 
@@ -28,5 +33,21 @@ if ! python -m pip install -r requirements.txt; then
   echo "Warning: dependency install failed; continuing with available system packages."
 fi
 
+if command -v sudo >/dev/null 2>&1; then
+  echo "Installing systemd service: $SERVICE_NAME"
+  sed \
+    -e "s|__PROJECT_DIR__|$PROJECT_DIR|g" \
+    -e "s|__SERVICE_USER__|$SERVICE_USER|g" \
+    "$SERVICE_TEMPLATE" > "$SERVICE_BUILD_FILE"
+
+  sudo install -m 0644 "$SERVICE_BUILD_FILE" "$SERVICE_FILE"
+  rm -f "$SERVICE_BUILD_FILE"
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable "$SERVICE_NAME"
+else
+  echo "Skipping systemd service install because sudo is not available."
+fi
+
 echo "Installation complete."
-echo "Start now with: ./scripts/start.sh"
+echo "Start now with: sudo systemctl start $SERVICE_NAME"
