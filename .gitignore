@@ -9,4 +9,4 @@ __pycache__/
 instance/
 config/spotify.json
 config/spotify-settings.json
-var/log/*
+var/log/
