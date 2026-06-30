@@ -1,11 +1,13 @@
 from copy import deepcopy
 import json
+import os
 import shutil
 import subprocess
 import threading
 from pathlib import Path
 
 from services.player import set_state
+from services.system import get_audio_device
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
@@ -84,13 +86,33 @@ def _snapshot_locked() -> dict:
         "state": _status["state"],
         "current_station": deepcopy(current_station) if current_station else None,
         "backend": _backend,
+        "audio_device": _mpv_audio_device(),
         "error": _last_error,
     }
 
 
+def _mpv_audio_device() -> str:
+    configured = os.getenv("MUSICSTREAMER_MPV_AUDIO_DEVICE", "").strip()
+
+    if configured:
+        return configured
+
+    return get_audio_device()
+
+
+def _mpv_command() -> list[str]:
+    command = ["mpv", "--no-video", "--really-quiet", "--force-window=no"]
+    audio_device = _mpv_audio_device()
+
+    if audio_device and audio_device != "default":
+        command.append(f"--audio-device={audio_device}")
+
+    return command
+
+
 def _available_backends() -> list[tuple[str, list[str]]]:
     return [
-        ("mpv", ["mpv", "--no-video", "--really-quiet"]),
+        ("mpv", _mpv_command()),
         ("cvlc", ["cvlc", "--intf", "dummy", "--quiet", "--play-and-exit"]),
         ("vlc", ["vlc", "--intf", "dummy", "--quiet", "--play-and-exit"]),
         ("ffplay", ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"]),
@@ -148,6 +170,8 @@ def _stop_process_locked() -> None:
 
 def get_radio_status() -> dict:
     with _lock:
+        if _process is not None and _process.poll() is not None and _status["state"] == "playing":
+            _status["state"] = "idle"
         return _snapshot_locked()
 
 
@@ -159,6 +183,7 @@ def save_station(station: dict) -> dict:
     name = str(station.get("name", "")).strip()
     url = str(station.get("url", "")).strip()
     frequency = str(station.get("frequency", "")).strip()
+    image_url = str(station.get("image_url", "")).strip()
 
     if not name or not url:
         raise ValueError("station requires name and url")
@@ -171,6 +196,9 @@ def save_station(station: dict) -> dict:
 
     if frequency:
         saved["frequency"] = frequency
+
+    if image_url:
+        saved["image_url"] = image_url
 
     with _lock:
         stations = list(_status["stations"])
@@ -237,7 +265,7 @@ def play_station(station_id: str | None = None) -> dict:
         artist=current_station.get("frequency") or current_station.get("url"),
         title=_station_title(current_station),
         album="Internet Radio",
-        artwork_url=None,
+        artwork_url=current_station.get("image_url") or None,
     )
 
     return get_radio_status()
@@ -262,6 +290,16 @@ def stop_radio() -> dict:
     )
 
     return get_radio_status()
+
+
+def toggle_radio(station_id: str | None = None) -> dict:
+    with _lock:
+        is_playing = _process is not None and _process.poll() is None and _status["state"] == "playing"
+
+    if is_playing:
+        return stop_radio()
+
+    return play_station(station_id)
 
 
 def load_radio_state() -> dict:

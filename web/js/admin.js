@@ -14,6 +14,7 @@ const elements = {
   stationName: document.querySelector("#station-name"),
   stationUrl: document.querySelector("#station-url"),
   stationFrequency: document.querySelector("#station-frequency"),
+  stationImageUrl: document.querySelector("#station-image-url"),
   stationsList: document.querySelector("#stations-list"),
   logsCount: document.querySelector("#logs-count"),
   logsQuery: document.querySelector("#logs-query"),
@@ -104,7 +105,7 @@ function renderStationsList() {
         <div class="station-row">
           <div class="station-meta">
             <strong>${escapeHtml(station.name)}</strong>
-            <span>${escapeHtml(station.url)}${station.frequency ? ` · ${escapeHtml(station.frequency)}` : ""}</span>
+            <span>${escapeHtml(station.url)}${station.frequency ? ` · ${escapeHtml(station.frequency)}` : ""}${station.image_url ? " · image" : ""}</span>
           </div>
           <div class="station-actions">
             <button class="button" type="button" data-play="${escapeHtml(station.id)}">Play</button>
@@ -210,10 +211,12 @@ elements.radioForm.addEventListener("submit", async (event) => {
       name: elements.stationName.value.trim(),
       url: elements.stationUrl.value.trim(),
       frequency: elements.stationFrequency.value.trim(),
+      image_url: elements.stationImageUrl.value.trim(),
     });
     elements.stationName.value = "";
     elements.stationUrl.value = "";
     elements.stationFrequency.value = "";
+    elements.stationImageUrl.value = "";
     setMessage("Station added.");
     await refreshStations();
   } catch (error) {

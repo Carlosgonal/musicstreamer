@@ -16,6 +16,7 @@ _state = {
     "audio_output": getenv("MUSICSTREAMER_AUDIO_OUTPUT", "jack"),
 }
 _last_volume_error = None
+DEFAULT_VOLUME_CONTROLS = ("Headphone", "Master", "PCM")
 
 
 def _read_config() -> dict:
@@ -86,10 +87,10 @@ def get_audio_device() -> str:
         output = _state["audio_output"]
 
     if output == "hdmi":
-        return getenv("MUSICSTREAMER_HDMI_AUDIO_DEVICE", "default")
+        return getenv("MUSICSTREAMER_HDMI_AUDIO_DEVICE", "alsa/hdmi:CARD=vc4hdmi0,DEV=0")
 
     if output == "jack":
-        return getenv("MUSICSTREAMER_JACK_AUDIO_DEVICE", "default")
+        return getenv("MUSICSTREAMER_JACK_AUDIO_DEVICE", "alsa/plughw:CARD=Headphones,DEV=0")
 
     return output or "default"
 
@@ -140,15 +141,22 @@ def _apply_hardware_volume(volume: int) -> str | None:
     percent = f"{volume}%"
 
     if shutil.which("amixer"):
-        commands = [
-            ["amixer", "set", "Master", percent],
-            ["amixer", "set", "PCM", percent],
-        ]
+        configured = getenv("MUSICSTREAMER_ALSA_MIXER", "").strip()
+        controls = (
+            [control.strip() for control in configured.split(",") if control.strip()]
+            if configured
+            else list(DEFAULT_VOLUME_CONTROLS)
+        )
 
         last_error: str | None = None
-        for command in commands:
+        for control in controls:
             try:
-                subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(
+                    ["amixer", "-M", "sset", control, percent, "unmute"],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
                 return None
             except (OSError, subprocess.CalledProcessError) as error:
                 last_error = str(error)

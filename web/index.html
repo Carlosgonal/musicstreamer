@@ -20,6 +20,11 @@
     </header>
 
     <section class="now-playing" aria-live="polite">
+      <div class="artwork-card">
+        <img id="artwork" class="artwork" alt="" hidden>
+        <div id="artwork-fallback" class="artwork-fallback">MS</div>
+        <button id="play-pause" class="play-pause" type="button" aria-label="Play">▶</button>
+      </div>
       <div class="meta">
         <div class="now-playing-head">
           <span id="source" class="source-badge">spotify</span>
@@ -28,6 +33,15 @@
         <h2 id="title" class="title">Spotify Ready</h2>
         <p id="artist" class="artist">Waiting for playback</p>
         <p id="context" class="context">Album / station details</p>
+        <div id="progress" class="progress">
+          <div class="progress-row">
+            <span id="elapsed" class="time">0:00</span>
+            <span id="remaining" class="time">--:--</span>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+        </div>
       </div>
     </section>
 

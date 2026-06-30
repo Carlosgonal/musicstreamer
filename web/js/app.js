@@ -5,6 +5,12 @@ const elements = {
   title: document.querySelector("#title"),
   artist: document.querySelector("#artist"),
   context: document.querySelector("#context"),
+  artwork: document.querySelector("#artwork"),
+  artworkFallback: document.querySelector("#artwork-fallback"),
+  playPause: document.querySelector("#play-pause"),
+  elapsed: document.querySelector("#elapsed"),
+  remaining: document.querySelector("#remaining"),
+  progressFill: document.querySelector("#progress-fill"),
   volume: document.querySelector("#volume"),
   volumeSlider: document.querySelector("#volume-slider"),
   radioStation: document.querySelector("#radio-station"),
@@ -54,6 +60,63 @@ function setButtonState(source) {
   const isSpotify = source === "spotify";
   elements.sourceSpotify.classList.toggle("is-active", isSpotify);
   elements.sourceRadio.classList.toggle("is-active", !isSpotify);
+}
+
+function setArtwork(imageUrl, fallbackText) {
+  const label = (fallbackText || "MS").trim().slice(0, 2).toUpperCase();
+  elements.artworkFallback.textContent = label || "MS";
+
+  if (!imageUrl) {
+    elements.artwork.hidden = true;
+    elements.artwork.removeAttribute("src");
+    elements.artwork.dataset.src = "";
+    elements.artworkFallback.hidden = false;
+    return;
+  }
+
+  if (elements.artwork.dataset.src === imageUrl) {
+    return;
+  }
+
+  elements.artwork.onload = () => {
+    elements.artwork.hidden = false;
+    elements.artworkFallback.hidden = true;
+  };
+  elements.artwork.onerror = () => {
+    elements.artwork.hidden = true;
+    elements.artworkFallback.hidden = false;
+  };
+  elements.artwork.dataset.src = imageUrl;
+  elements.artwork.src = imageUrl;
+}
+
+function formatTime(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return "0:00";
+  }
+
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function renderProgress(progressMs, durationMs, isLive = false) {
+  if (isLive) {
+    elements.elapsed.textContent = "LIVE";
+    elements.remaining.textContent = "";
+    elements.progressFill.style.width = "100%";
+    return;
+  }
+
+  const progress = Math.max(0, Number(progressMs || 0));
+  const duration = Math.max(0, Number(durationMs || 0));
+  const remaining = Math.max(0, duration - progress);
+  const percent = duration > 0 ? Math.min(100, Math.max(0, (progress / duration) * 100)) : 0;
+
+  elements.elapsed.textContent = formatTime(progress);
+  elements.remaining.textContent = duration > 0 ? `-${formatTime(remaining)}` : "--:--";
+  elements.progressFill.style.width = `${percent}%`;
 }
 
 function renderSystem(system, audio) {
@@ -113,6 +176,9 @@ function renderPlayer(player, spotify, radio) {
   let context = player?.album || "--";
   let state = player?.state || "idle";
   let sourceLabel = source;
+  let artworkUrl = player?.artwork_url || "";
+  let artworkLabel = title;
+  let isPlaying = player?.state === "playing";
 
   if (isSpotify) {
     title = spotifyTrack.track || player?.title || "Spotify Ready";
@@ -120,6 +186,10 @@ function renderPlayer(player, spotify, radio) {
     context = spotifyTrack.album || player?.album || "--";
     state = spotify?.label || spotify?.state || player?.state || "idle";
     sourceLabel = spotify?.service || "spotify";
+    artworkUrl = spotifyTrack.image || player?.artwork_url || "";
+    artworkLabel = title;
+    isPlaying = Boolean(spotifyTrack.is_playing);
+    renderProgress(spotifyTrack.progress_ms, spotifyTrack.duration_ms, false);
   } else if (isRadio) {
     title = radioStation?.name || player?.title || "Radio Ready";
     const parts = [];
@@ -133,13 +203,23 @@ function renderPlayer(player, spotify, radio) {
     context = radio?.state === "playing" ? "Playing radio" : radio?.error || "Radio ready";
     state = radio?.state || player?.state || "idle";
     sourceLabel = "radio";
+    artworkUrl = radioStation?.image_url || "";
+    artworkLabel = radioStation?.name || "Radio";
+    isPlaying = radio?.state === "playing";
+    renderProgress(0, 0, radio?.state === "playing");
+  } else {
+    renderProgress(0, 0, false);
   }
 
+  document.querySelector(".device").dataset.source = source;
+  setArtwork(artworkUrl, artworkLabel);
   elements.source.textContent = sourceLabel;
   elements.state.textContent = state;
   elements.title.textContent = title;
   elements.artist.textContent = artist;
   elements.context.textContent = context;
+  elements.playPause.textContent = isPlaying ? "Ⅱ" : "▶";
+  elements.playPause.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
   document.title = `${title} - MusicStreamer`;
 }
 
@@ -186,6 +266,18 @@ async function switchSource(source) {
   await refresh();
 }
 
+async function togglePlayback() {
+  const source = (appState.player?.source || "spotify").toLowerCase();
+  const payload = { source };
+
+  if (source === "radio" && elements.radioStation.value) {
+    payload.station_id = elements.radioStation.value;
+  }
+
+  await postJson("/api/player/toggle", payload);
+  await refresh();
+}
+
 function queueVolumeUpdate(volume) {
   if (volumeTimer !== null) {
     window.clearTimeout(volumeTimer);
@@ -218,6 +310,12 @@ elements.radioStation.addEventListener("change", () => {
       elements.systemStatus.textContent = error.message;
     });
   }
+});
+
+elements.playPause.addEventListener("click", () => {
+  togglePlayback().catch((error) => {
+    elements.systemStatus.textContent = error.message;
+  });
 });
 
 elements.audioOutput.addEventListener("change", () => {
