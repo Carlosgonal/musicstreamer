@@ -19,9 +19,15 @@ if [ -d "$VENV_DIR" ]; then
   rm -rf "$VENV_DIR"
 fi
 
-if [ -d "$PROJECT_DIR/var" ] && [ -z "${MUSICSTREAMER_KEEP_RUNTIME:-}" ]; then
-  echo "Removing runtime data"
-  rm -rf "$PROJECT_DIR/var"
+if [ -d "$PROJECT_DIR/var" ]; then
+  if [ "${MUSICSTREAMER_RESET_CONFIG:-}" = "1" ]; then
+    echo "Removing runtime config and data"
+    rm -rf "$PROJECT_DIR/var"
+  else
+    echo "Removing runtime logs and cache; keeping var/config"
+    rm -rf "$PROJECT_DIR/var/log" "$PROJECT_DIR/var/cache" "$PROJECT_DIR/var/tmp"
+    echo "Use MUSICSTREAMER_RESET_CONFIG=1 ./scripts/clean.sh to remove saved Spotify/radio settings."
+  fi
 fi
 
 if [ -d "$PROJECT_DIR/config" ]; then
