@@ -260,6 +260,28 @@ h1 {
   white-space: nowrap;
 }
 
+.volume-control {
+  align-items: stretch;
+}
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.volume-slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.volume-slider:focus {
+  outline: none;
+}
+
 .select-inline {
   width: 130px;
   max-width: 100%;

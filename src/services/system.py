@@ -1,4 +1,6 @@
 import json
+import shutil
+import subprocess
 from os import getenv
 from pathlib import Path
 from threading import Lock
@@ -13,6 +15,7 @@ _state = {
     "volume": 50,
     "audio_output": getenv("MUSICSTREAMER_AUDIO_OUTPUT", "jack"),
 }
+_last_volume_error = None
 
 
 def _read_config() -> dict:
@@ -51,6 +54,7 @@ def get_system_status() -> dict:
     return {
         "service": getenv("MUSICSTREAMER_SERVICE_NAME", "musicstreamer"),
         "status": "running",
+        "volume": get_volume(),
         "audio": get_audio_status(),
     }
 
@@ -65,10 +69,16 @@ def get_volume() -> int:
 
 
 def set_volume(volume: int) -> int:
+    global _last_volume_error
+
+    target_volume = max(0, min(100, int(volume)))
+
     with _lock:
-        _state["volume"] = max(0, min(100, int(volume)))
+        _state["volume"] = target_volume
         _write_config()
-        return _state["volume"]
+
+    _last_volume_error = _apply_hardware_volume(target_volume)
+    return target_volume
 
 
 def get_audio_device() -> str:
@@ -90,6 +100,9 @@ def get_audio_status() -> dict:
 
     return {
         "output": output,
+        "volume": get_volume(),
+        "volume_driver": _volume_driver_name(),
+        "volume_error": _last_volume_error,
         "outputs": [
             {"id": "jack", "label": "Jack"},
             {"id": "hdmi", "label": "HDMI"},
@@ -111,3 +124,47 @@ def set_audio_output(output_id: str) -> dict:
         "id": normalized,
         "label": normalized.upper() if normalized == "hdmi" else "Jack",
     }
+
+
+def _volume_driver_name() -> str:
+    if shutil.which("amixer"):
+        return "amixer"
+
+    if shutil.which("pactl"):
+        return "pactl"
+
+    return "unavailable"
+
+
+def _apply_hardware_volume(volume: int) -> str | None:
+    percent = f"{volume}%"
+
+    if shutil.which("amixer"):
+        commands = [
+            ["amixer", "set", "Master", percent],
+            ["amixer", "set", "PCM", percent],
+        ]
+
+        last_error: str | None = None
+        for command in commands:
+            try:
+                subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return None
+            except (OSError, subprocess.CalledProcessError) as error:
+                last_error = str(error)
+
+        return last_error or "amixer failed"
+
+    if shutil.which("pactl"):
+        try:
+            subprocess.run(
+                ["pactl", "set-sink-volume", "@DEFAULT_SINK@", percent],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return None
+        except (OSError, subprocess.CalledProcessError) as error:
+            return str(error)
+
+    return "No system volume backend found"

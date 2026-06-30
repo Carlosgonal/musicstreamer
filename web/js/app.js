@@ -6,6 +6,7 @@ const elements = {
   artist: document.querySelector("#artist"),
   context: document.querySelector("#context"),
   volume: document.querySelector("#volume"),
+  volumeSlider: document.querySelector("#volume-slider"),
   radioStation: document.querySelector("#radio-station"),
   audioOutput: document.querySelector("#audio-output"),
   sourceSpotify: document.querySelector("#source-spotify"),
@@ -13,6 +14,7 @@ const elements = {
 };
 
 let pollTimer = null;
+let volumeTimer = null;
 let appState = {
   player: null,
   spotify: null,
@@ -69,6 +71,10 @@ function renderSystem(system, audio) {
   }
 
   elements.audioOutput.value = currentOutput;
+
+  const volume = Number(system?.volume ?? appState.player?.volume ?? 50);
+  elements.volume.textContent = `${volume}%`;
+  elements.volumeSlider.value = String(volume);
 }
 
 function renderStations(radio) {
@@ -124,7 +130,7 @@ function renderPlayer(player, spotify, radio) {
       parts.push(radioStation.url);
     }
     artist = parts.join(" · ") || "No station selected";
-    context = radio?.state === "playing" ? "Playing radio" : "Radio ready";
+    context = radio?.state === "playing" ? "Playing radio" : radio?.error || "Radio ready";
     state = radio?.state || player?.state || "idle";
     sourceLabel = "radio";
   }
@@ -134,7 +140,6 @@ function renderPlayer(player, spotify, radio) {
   elements.title.textContent = title;
   elements.artist.textContent = artist;
   elements.context.textContent = context;
-  elements.volume.textContent = `${Number(player?.volume ?? 50)}%`;
   document.title = `${title} - MusicStreamer`;
 }
 
@@ -181,6 +186,20 @@ async function switchSource(source) {
   await refresh();
 }
 
+function queueVolumeUpdate(volume) {
+  if (volumeTimer !== null) {
+    window.clearTimeout(volumeTimer);
+  }
+
+  volumeTimer = window.setTimeout(() => {
+    postJson("/api/system/volume", { volume })
+      .then(() => refresh())
+      .catch((error) => {
+        elements.systemStatus.textContent = error.message;
+      });
+  }, 150);
+}
+
 elements.sourceSpotify.addEventListener("click", () => {
   switchSource("spotify").catch((error) => {
     elements.systemStatus.textContent = error.message;
@@ -209,6 +228,12 @@ elements.audioOutput.addEventListener("change", () => {
     });
 });
 
+elements.volumeSlider.addEventListener("input", () => {
+  const volume = Number(elements.volumeSlider.value);
+  elements.volume.textContent = `${volume}%`;
+  queueVolumeUpdate(volume);
+});
+
 function startPolling() {
   refresh();
   pollTimer = window.setInterval(refresh, 1000);
@@ -217,6 +242,9 @@ function startPolling() {
 window.addEventListener("beforeunload", () => {
   if (pollTimer !== null) {
     window.clearInterval(pollTimer);
+  }
+  if (volumeTimer !== null) {
+    window.clearTimeout(volumeTimer);
   }
 });
 
