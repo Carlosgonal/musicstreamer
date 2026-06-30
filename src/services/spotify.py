@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 
 import requests
 
-from services.player import set_state
+from services.player import get_source, set_state
 from services.system import get_audio_device
 
 
@@ -583,6 +583,23 @@ def pause_spotify() -> dict:
         return get_spotify_status()
 
 
+def release_spotify_audio() -> dict:
+    global _last_error
+
+    if _raspotify_installed():
+        try:
+            _run_systemctl("stop", "raspotify")
+            _last_error = None
+            return get_spotify_status()
+        except (RuntimeError, subprocess.CalledProcessError) as error:
+            _last_error = str(error)
+
+    with _lock:
+        _stop_locked()
+
+    return pause_spotify()
+
+
 def set_spotify_volume(volume: int) -> dict:
     global _last_error
 
@@ -650,7 +667,7 @@ def get_spotify_status() -> dict:
         state = "standby"
         label = "Ready"
 
-    if playback:
+    if playback and get_source() == "spotify":
         _last_error = None
         set_state(
             source="spotify",

@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 
 from services.player import get_player_status
 from services.radio import get_radio_status, play_station, stop_radio, toggle_radio
-from services.spotify import control_playback, get_spotify_status, pause_spotify, start_spotify
+from services.spotify import control_playback, get_spotify_status, release_spotify_audio, start_spotify
 from services.player import set_state
 
 
@@ -39,7 +39,7 @@ def source():
         })
 
     if source == "radio":
-        pause_spotify()
+        release_spotify_audio()
         try:
             radio_status = play_station(station_id)
         except RuntimeError as error:
@@ -56,7 +56,7 @@ def source():
         return jsonify({
             "player": get_player_status(),
             "radio": radio_status,
-            "spotify": get_spotify_status(),
+            "spotify": None,
         })
 
     return jsonify({"error": "unknown source"}), 400
@@ -70,7 +70,7 @@ def toggle():
     station_id = str(payload.get("station_id", "")).strip() or None
 
     if source == "radio":
-        pause_spotify()
+        release_spotify_audio()
         try:
             radio_status = toggle_radio(station_id)
         except RuntimeError as error:
@@ -88,7 +88,7 @@ def toggle():
         return jsonify({
             "player": get_player_status(),
             "radio": radio_status,
-            "spotify": get_spotify_status(),
+            "spotify": None,
         })
 
     if source == "spotify":

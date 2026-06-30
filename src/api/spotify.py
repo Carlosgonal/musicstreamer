@@ -53,7 +53,35 @@ def callback():
     except Exception as error:
         return f"Spotify authorization failed: {error}", 400
 
-    return "<p>Spotify linked. You can return to MusicStreamer.</p>"
+    return """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spotify linked</title>
+  <link rel="stylesheet" href="/web/css/app.css">
+  <link rel="stylesheet" href="/web/css/admin.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="section-label">Spotify</p>
+          <h1>Account linked</h1>
+        </div>
+        <span class="pill">linked</span>
+      </div>
+      <div class="actions">
+        <a class="button primary" href="/">Back to streamer</a>
+        <a class="button" href="/admin">Back to admin</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+"""
 
 
 @spotify_api.post("/control/<action>")

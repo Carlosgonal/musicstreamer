@@ -25,6 +25,11 @@ def get_player_status() -> dict:
         return deepcopy(_status)
 
 
+def get_source() -> str:
+    with _lock:
+        return str(_status.get("source") or "spotify")
+
+
 def set_volume(volume: int) -> dict:
     with _lock:
         _status["volume"] = set_system_volume(volume)
