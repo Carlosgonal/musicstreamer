@@ -15,29 +15,16 @@ fi
 
 HOST="${MUSICSTREAMER_HOST:-0.0.0.0}"
 PORT="${MUSICSTREAMER_PORT:-8080}"
-SERVICE_NAME="${MUSICSTREAMER_SERVICE_NAME:-musicstreamer}"
-
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "python3 is required but was not found."
-  exit 1
-fi
 
 if [ ! -d "$VENV_DIR" ]; then
-  echo "Creating virtual environment in $VENV_DIR"
-  python3 -m venv "$VENV_DIR"
+  echo "Virtual environment not found. Run ./scripts/install.sh first."
+  exit 1
 fi
 
 # shellcheck source=/dev/null
 source "$VENV_DIR/bin/activate"
 
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-
-export FLASK_ENV="${FLASK_ENV:-production}"
-export FLASK_DEBUG="${FLASK_DEBUG:-0}"
 export MUSICSTREAMER_HOST="$HOST"
 export MUSICSTREAMER_PORT="$PORT"
 
-echo "Starting MusicStreamer on http://$HOST:$PORT"
-echo "Service name: $SERVICE_NAME"
 exec python src/app.py

@@ -2,12 +2,12 @@ from flask import Blueprint, jsonify, redirect, request
 
 from services.spotify import (
     control_playback,
-    get_authorize_url,
     get_admin_settings,
+    get_authorize_url,
     get_spotify_status,
     handle_oauth_callback,
-    start_spotify,
     save_admin_settings,
+    start_spotify,
     stop_spotify,
 )
 

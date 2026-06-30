@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 
 import requests
 
+from services.player import set_state
 from services.system import get_audio_device
 
 
@@ -29,6 +30,7 @@ RASPOTIFY_SERVICE_FILES = (
     Path("/usr/lib/systemd/system/raspotify.service"),
 )
 RASPOTIFY_CONFIG_FILE = Path("/etc/raspotify/conf")
+
 _process: subprocess.Popen | None = None
 _last_error: str | None = None
 _lock = threading.Lock()
@@ -251,6 +253,7 @@ def get_authorize_url() -> str:
 
     return f"{SPOTIFY_ACCOUNTS_URL}/authorize?{urlencode(params)}"
 
+
 def _auth_header() -> dict:
     raw_credentials = f"{_client_id()}:{_client_secret()}".encode("utf-8")
     encoded_credentials = base64.b64encode(raw_credentials).decode("ascii")
@@ -359,11 +362,7 @@ def _current_playback() -> dict | None:
     if not is_authenticated():
         return None
 
-    try:
-        response = _spotify_request("GET", "/me/player")
-    except (RuntimeError, ValueError, requests.RequestException) as error:
-        _last_error = str(error)
-        return None
+    response = _spotify_request("GET", "/me/player")
 
     if response is None or response.status_code == 204:
         return None
@@ -445,6 +444,14 @@ def start_spotify() -> dict:
 
     if not _is_enabled():
         _last_error = "Spotify disabled"
+        set_state(
+            source="spotify",
+            state="idle",
+            artist=None,
+            title="Spotify Disabled",
+            album=None,
+            artwork_url=None,
+        )
         return get_spotify_status()
 
     if _raspotify_installed():
@@ -458,6 +465,14 @@ def start_spotify() -> dict:
 
     if player is None:
         _last_error = "Raspotify is not installed"
+        set_state(
+            source="spotify",
+            state="idle",
+            artist=None,
+            title="Install Raspotify",
+            album=None,
+            artwork_url=None,
+        )
         return get_spotify_status()
 
     with _lock:
@@ -483,11 +498,28 @@ def stop_spotify() -> dict:
         except (RuntimeError, subprocess.CalledProcessError) as error:
             _last_error = str(error)
 
+        set_state(
+            source="spotify",
+            state="idle",
+            artist=None,
+            title="Spotify Ready",
+            album=None,
+            artwork_url=None,
+        )
         return get_spotify_status()
 
     with _lock:
         _stop_locked()
         _last_error = None
+
+    set_state(
+        source="spotify",
+        state="idle",
+        artist=None,
+        title="Spotify Ready",
+        album=None,
+        artwork_url=None,
+    )
 
     return get_spotify_status()
 
@@ -527,7 +559,19 @@ def control_playback(action: str) -> dict:
     return get_spotify_status()
 
 
+def _current_playback_safe() -> dict | None:
+    global _last_error
+
+    try:
+        return _current_playback()
+    except Exception as error:
+        _last_error = str(error)
+        return None
+
+
 def get_spotify_status() -> dict:
+    global _last_error
+
     enabled = _is_enabled()
     raspotify_installed = _raspotify_installed()
     installed = raspotify_installed or shutil.which("librespot") is not None
@@ -562,6 +606,17 @@ def get_spotify_status() -> dict:
         state = "standby"
         label = "Ready"
 
+    if playback:
+        _last_error = None
+        set_state(
+            source="spotify",
+            state="playing" if playback["is_playing"] else "idle",
+            artist=playback["artist"] or None,
+            title=playback["track"] or "Spotify",
+            album=playback["album"] or None,
+            artwork_url=playback["image"] or None,
+        )
+
     return {
         "available": available,
         "service": "Spotify Connect",
@@ -575,13 +630,3 @@ def get_spotify_status() -> dict:
         "player": playback,
         "admin": get_admin_settings(),
     }
-
-
-def _current_playback_safe() -> dict | None:
-    global _last_error
-
-    try:
-        return _current_playback()
-    except Exception as error:
-        _last_error = str(error)
-        return None

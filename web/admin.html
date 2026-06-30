@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MusicStreamer Admin</title>
+  <link rel="stylesheet" href="/web/css/app.css">
+  <link rel="stylesheet" href="/web/css/admin.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <header class="admin-header">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1>MusicStreamer</h1>
+      </div>
+      <a class="icon-link" href="/" aria-label="Back to player" title="Player">←</a>
+    </header>
+
+    <section class="admin-grid">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="section-label">Spotify</p>
+            <h2>Connect settings</h2>
+          </div>
+          <span id="spotify-status" class="pill">loading</span>
+        </div>
+
+        <form id="spotify-form" class="form">
+          <label class="field">
+            <span>Enabled</span>
+            <input id="spotify-enabled" type="checkbox">
+          </label>
+          <label class="field">
+            <span>Device name</span>
+            <input id="spotify-device-name" type="text" maxlength="64" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Bitrate</span>
+            <select id="spotify-bitrate">
+              <option value="96">96</option>
+              <option value="160">160</option>
+              <option value="320">320</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Cache dir</span>
+            <input id="spotify-cache-dir" type="text" autocomplete="off" placeholder="/tmp/spotify-cache">
+          </label>
+          <label class="field">
+            <span>Client ID</span>
+            <input id="spotify-client-id" type="text" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Client secret</span>
+            <input id="spotify-client-secret" type="password" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Redirect URI</span>
+            <input id="spotify-redirect-uri" type="text" autocomplete="off">
+          </label>
+
+          <div class="actions">
+            <button id="spotify-save" class="button primary" type="submit">Save Spotify</button>
+            <button id="spotify-login" class="button" type="button">Link account</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="section-label">Radio</p>
+            <h2>Stations</h2>
+          </div>
+          <span id="radio-count" class="pill">0</span>
+        </div>
+
+        <form id="radio-form" class="form radio-form">
+          <label class="field">
+            <span>Name</span>
+            <input id="station-name" type="text" maxlength="64" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>URL</span>
+            <input id="station-url" type="url" autocomplete="off" placeholder="https://...">
+          </label>
+          <label class="field">
+            <span>Frequency</span>
+            <input id="station-frequency" type="text" maxlength="16" autocomplete="off" placeholder="88.2">
+          </label>
+          <div class="actions">
+            <button class="button primary" type="submit">Add station</button>
+          </div>
+        </form>
+
+        <div id="stations-list" class="stations-list" aria-live="polite"></div>
+      </section>
+    </section>
+
+    <footer id="admin-message" class="message" aria-live="polite"></footer>
+  </main>
+
+  <script src="/web/js/admin.js" defer></script>
+</body>
+</html>

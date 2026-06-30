@@ -1,237 +1,174 @@
+from copy import deepcopy
 import json
 from pathlib import Path
-import shutil
-import subprocess
-import threading
+from threading import Lock
 
-from services.system import get_audio_device
+from services.player import set_state
 
-
-DEFAULT_STATIONS = [
-    {
-        "id": "ser",
-        "name": "Cadena SER",
-        "frequency": "105.4",
-        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/CADENASER.mp3",
-    },
-    {
-        "id": "los40",
-        "name": "LOS40",
-        "frequency": "93.9",
-        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/LOS40.mp3",
-    },
-    {
-        "id": "dial",
-        "name": "Cadena Dial",
-        "frequency": "91.7",
-        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/CADENADIAL.mp3",
-    },
-    {
-        "id": "radio3",
-        "name": "Radio 3",
-        "frequency": "93.2",
-        "url": "https://rtvelivestream.akamaized.net/rtvesec/rne/rne_r3_main.m3u8",
-    },
-    {
-        "id": "rne",
-        "name": "RNE",
-        "frequency": "88.2",
-        "url": "https://rtvelivestream.akamaized.net/rtvesec/rne/rne_r1_main.m3u8",
-    },
-]
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 RUNTIME_CONFIG_DIR = PROJECT_DIR / "var" / "config"
 RADIO_CONFIG_FILE = RUNTIME_CONFIG_DIR / "radio.json"
-DEFAULT_RADIO_CONFIG_FILE = PROJECT_DIR / "config" / "radio.json"
-_process: subprocess.Popen | None = None
-_current_station: dict | None = None
-_last_error: str | None = None
-_lock = threading.Lock()
+LEGACY_RADIO_CONFIG_FILE = PROJECT_DIR / "config" / "radio.json"
+
+DEFAULT_RADIO_STATUS = {
+    "stations": [],
+    "state": "idle",
+    "current_station_id": None,
+}
+
+_lock = Lock()
+_status = deepcopy(DEFAULT_RADIO_STATUS)
 
 
-def _build_mpv_command(player: str, url: str) -> list[str]:
-    command = [
-        player,
-        "--no-video",
-        "--really-quiet",
-        "--force-window=no",
-    ]
-    audio_device = get_audio_device()
-
-    if audio_device:
-        command.append(f"--audio-device={audio_device}")
-
-    command.append(url)
-    return command
-
-
-def _station_id(frequency: str, name: str) -> str:
-    normalized_frequency = "".join(character for character in frequency if character.isdigit())
-    normalized_name = "".join(character.lower() for character in name if character.isalnum())
-    return f"{normalized_name or 'station'}-{normalized_frequency or 'fm'}"
-
-
-def _normalize_station(station: dict) -> dict | None:
-    name = str(station.get("name", "")).strip()
-    frequency = str(station.get("frequency", "")).strip()
-    url = str(station.get("url", "")).strip()
-
-    if not name or not frequency or not url:
-        return None
-
-    try:
-        frequency_value = float(frequency)
-    except ValueError:
-        return None
-
-    if frequency_value < 87.5 or frequency_value > 108:
-        return None
-
-    frequency = f"{frequency_value:.1f}"
-
-    return {
-        "id": str(station.get("id", "")).strip() or _station_id(frequency, name),
-        "name": name,
-        "frequency": frequency,
-        "url": url,
-    }
-
-
-def _read_station_config() -> list[dict]:
-    config_path = RADIO_CONFIG_FILE if RADIO_CONFIG_FILE.exists() else DEFAULT_RADIO_CONFIG_FILE
+def _read_config() -> dict:
+    config_path = RADIO_CONFIG_FILE if RADIO_CONFIG_FILE.exists() else LEGACY_RADIO_CONFIG_FILE
 
     try:
         with config_path.open("r", encoding="utf-8") as config_file:
-            config = json.load(config_file)
+            data = json.load(config_file)
     except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return DEFAULT_STATIONS
+        return deepcopy(DEFAULT_RADIO_STATUS)
 
-    raw_stations = config.get("stations", []) if isinstance(config, dict) else []
-    stations = [
-        normalized
-        for station in raw_stations
-        if isinstance(station, dict)
-        for normalized in [_normalize_station(station)]
-        if normalized is not None
-    ]
+    if not isinstance(data, dict):
+        return deepcopy(DEFAULT_RADIO_STATUS)
 
-    return stations or DEFAULT_STATIONS
+    stations = data.get("stations", [])
+    current_station_id = data.get("current_station_id")
+
+    return {
+        "stations": stations if isinstance(stations, list) else [],
+        "state": str(data.get("state", "idle")),
+        "current_station_id": current_station_id if isinstance(current_station_id, str) else None,
+    }
 
 
-def _write_station_config(stations: list[dict]) -> None:
+def _write_config(status: dict) -> None:
     RADIO_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-
     with RADIO_CONFIG_FILE.open("w", encoding="utf-8") as config_file:
-        json.dump({"stations": stations}, config_file, indent=2)
+        json.dump(status, config_file, indent=2)
         config_file.write("\n")
 
 
-def _find_station(station_id: str | None) -> dict:
-    stations = list_stations()
+def _station_title(station: dict | None) -> str:
+    if not station:
+        return "Radio Ready"
+    return str(station.get("name") or "Radio").strip() or "Radio Ready"
 
-    if station_id:
+
+def _current_station_locked() -> dict | None:
+    stations = list(_status["stations"])
+
+    if not stations:
+        return None
+
+    current_id = _status.get("current_station_id")
+
+    if current_id:
         for station in stations:
-            if station["id"] == station_id or station["frequency"] == station_id:
+            if station.get("id") == current_id:
                 return station
 
     return stations[0]
 
 
-def _is_process_running() -> bool:
-    return _process is not None and _process.poll() is None
+def _snapshot_locked() -> dict:
+    current_station = _current_station_locked()
+    return {
+        "stations": deepcopy(_status["stations"]),
+        "state": _status["state"],
+        "current_station": deepcopy(current_station) if current_station else None,
+    }
 
 
-def _stop_locked() -> None:
-    global _process
-
-    if _process is None:
-        return
-
-    if _process.poll() is None:
-        _process.terminate()
-        try:
-            _process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            _process.kill()
-            _process.wait(timeout=2)
-
-    _process = None
+def get_radio_status() -> dict:
+    with _lock:
+        return _snapshot_locked()
 
 
 def list_stations() -> list[dict]:
-    return _read_station_config()
+    return get_radio_status()["stations"]
 
 
 def save_station(station: dict) -> dict:
-    normalized = _normalize_station(station)
+    name = str(station.get("name", "")).strip()
+    url = str(station.get("url", "")).strip()
+    frequency = str(station.get("frequency", "")).strip()
 
-    if normalized is None:
-        raise ValueError("station requires name, frequency and url")
+    if not name or not url:
+        raise ValueError("station requires name and url")
 
-    stations = [
-        existing
-        for existing in list_stations()
-        if existing["id"] != normalized["id"] and existing["frequency"] != normalized["frequency"]
-    ]
-    stations.append(normalized)
-    stations.sort(key=lambda item: float(item["frequency"]))
-    _write_station_config(stations)
-    return normalized
+    saved = {
+        "id": str(station.get("id", "")).strip() or name.lower().replace(" ", "-"),
+        "name": name,
+        "url": url,
+    }
+
+    if frequency:
+        saved["frequency"] = frequency
+
+    with _lock:
+        stations = list(_status["stations"])
+        stations = [entry for entry in stations if entry["id"] != saved["id"]]
+        stations.append(saved)
+        _status["stations"] = stations
+        _write_config(_status)
+
+    return saved
+
+
+def delete_station(station_id: str) -> dict:
+    with _lock:
+        stations = [entry for entry in _status["stations"] if entry["id"] != station_id]
+        _status["stations"] = stations
+        if _status.get("current_station_id") == station_id:
+            _status["current_station_id"] = stations[0]["id"] if stations else None
+        _write_config(_status)
+        return _snapshot_locked()
 
 
 def play_station(station_id: str | None = None) -> dict:
-    global _current_station, _last_error, _process
-
-    station = _find_station(station_id)
-    player = shutil.which("mpv")
-
-    if player is None:
-        _last_error = "mpv is not installed"
-        return get_radio_status()
-
     with _lock:
-        _stop_locked()
+        if station_id:
+            _status["current_station_id"] = station_id
 
-        _current_station = station
-        _last_error = None
-        _process = subprocess.Popen(
-            _build_mpv_command(player, station["url"]),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        current_station = _current_station_locked()
+        _status["state"] = "playing" if current_station else "idle"
+        _write_config(_status)
+
+    set_state(
+        source="radio",
+        state="playing" if current_station else "idle",
+        artist=None,
+        title=_station_title(current_station),
+        album="Internet Radio" if current_station else None,
+        artwork_url=None,
+    )
 
     return get_radio_status()
 
 
 def stop_radio() -> dict:
-    global _current_station, _last_error
-
     with _lock:
-        _stop_locked()
-        _current_station = None
-        _last_error = None
+        _status["state"] = "idle"
+        _write_config(_status)
+
+    set_state(
+        source="radio",
+        state="idle",
+        artist=None,
+        title="Radio Ready",
+        album=None,
+        artwork_url=None,
+    )
 
     return get_radio_status()
 
 
-def get_radio_status() -> dict:
+def load_radio_state() -> dict:
     with _lock:
-        playing = _is_process_running()
-        station = _current_station if playing else None
-        state = "playing" if playing else "standby"
+        _status.update(_read_config())
+        return _snapshot_locked()
 
-        if _current_station is not None and not playing and _last_error is None:
-            state = "stopped"
 
-        label = station["name"] if station else "Radio Ready"
-
-        return {
-            "available": shutil.which("mpv") is not None,
-            "service": "Internet Radio",
-            "state": state,
-            "label": label,
-            "station": station,
-            "error": _last_error,
-        }
+load_radio_state()
